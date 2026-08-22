@@ -1,0 +1,38 @@
+
+### 6. `.gitignore`
+
+```gitignore
+# Ansible
+*.retry
+.vault_password
+vault_password
+
+# Secrets
+.env
+.env.*
+*.secret
+secrets/
+credentials/
+
+# SSH
+*.pem
+*.key
+id_rsa
+id_ed25519
+
+# Local configuration
+config/local/
+ansible/inventory/local/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+.DS_Store
+Thumbs.db
