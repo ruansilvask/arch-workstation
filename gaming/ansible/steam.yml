@@ -1,0 +1,14 @@
+---
+- name: Validate Steam runtime
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Check Steam command
+      ansible.builtin.command: distrobox enter gaming -- steam --version
+      changed_when: false
+      register: steam_version
+
+    - name: Print Steam version
+      ansible.builtin.debug:
+        var: steam_version.stdout
