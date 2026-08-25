@@ -1,7 +1,14 @@
 # Arch Workstation — Omarchy + Gaming
 
-Reproducible workstation configuration for Omarchy, with a dedicated
-containerized Linux gaming environment.
+Reproducible post-install configuration for an Omarchy workstation with a
+dedicated containerized Linux gaming environment.
+
+## Important boundary
+
+**Omarchy is installed separately.**
+
+This repository starts after the first successful Omarchy boot. It does not
+install Arch, Hyprland, Btrfs, systemd-boot, or the bootloader.
 
 ## Target architecture
 
@@ -9,7 +16,7 @@ containerized Linux gaming environment.
 Omarchy
 ├── Arch base
 ├── Hyprland / Wayland
-├── AMD Radeon RX 9060 XT
+├── AMD RX 9060 XT
 ├── AMDGPU + Mesa/RADV
 ├── Btrfs
 ├── systemd-boot
@@ -25,54 +32,53 @@ Omarchy
     ├── Gamescope
     ├── MangoHud
     ├── GameMode
-    ├── automatic diagnostics
-    ├── automatic remediation
-    ├── per-game compatibility
-    └── automatic installation
+    ├── diagnóstico automático
+    ├── remediação automática
+    ├── compatibilidade por jogo
+    └── instalação automática
 ```
 
-Omarchy is installed first. This repository configures the resulting system.
+## Safe workflow
 
-The project intentionally has no NVIDIA target and no KDE target.
-
-## Safety
-
-Only `/dev/nvme0n1` is considered the operating-system disk.
-
-The following data disks are protected:
-
-- `/dev/sda`
-- `/dev/sdb`
-- `/dev/sdc`
-
-The Gaming module uses `/mnt/jogos` as persistent storage and never formats,
-partitions, wipes, or recursively deletes that path.
-
-## First execution
-
-After installing Omarchy and booting into the graphical session:
+1. Install the RX 9060 XT and PSU.
+2. Install Omarchy from its official ISO.
+3. Select only `/dev/nvme0n1` as the OS installation target.
+4. Boot Omarchy.
+5. Clone this repository.
+6. Run:
 
 ```bash
-git clone https://github.com/ruansilvask/arch-workstation.git
-cd arch-workstation
-git checkout develop
 ./bootstrap/bootstrap.sh
 ```
 
-The bootstrap is intended to be idempotent.
+The bootstrap performs a read-only preflight and then configures the
+already-installed OS.
 
-Steam credentials are never stored in the repository. Game installation requires
-an authenticated Steam session.
+## Disk safety
 
-## Repository layout
+The project never partitions, formats or wipes disks.
+
+Known data disks:
 
 ```text
-arch-workstation/
-├── ansible/
-├── bootstrap/
-├── packages/
-├── configs/
-├── scripts/
-├── docs/
-└── gaming/
+/dev/sda  -> OldHD
+/dev/sdb  -> Jogos
+/dev/sdc  -> Windows / Armazenamento
 ```
+
+OS disk:
+
+```text
+/dev/nvme0n1
+```
+
+`/mnt/jogos` is persistent and is bind-mounted into the gaming container.
+Resetting the container never deletes or formats that library.
+
+## Gaming
+
+The implementation follows the Distrobox approach used by AkitaOnRails'
+`distrobox-gaming`, with the reference implementation retained under
+`gaming/ansible/reference/`.
+
+Steam credentials are never stored in this repository.

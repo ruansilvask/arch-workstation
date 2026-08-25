@@ -1,22 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Core applications are installed from official Arch repositories whenever
-# possible. AUR is only used when the requested application is not in the
-# enabled official repositories.
-
 OFFICIAL=(
   firefox
   bitwarden
   obsidian
-  proton-vpn-gtk-app
   telegram-desktop
   vlc
 )
 
-sudo pacman -S --needed "${OFFICIAL[@]}"
+sudo pacman -S --needed --noconfirm "${OFFICIAL[@]}"
 
-# ONLYOFFICE is maintained as onlyoffice-bin in the AUR.
 "${BASH_SOURCE[0]%/*}/install-aur-helper.sh"
 
 AUR_HELPER=""
@@ -27,13 +21,12 @@ elif command -v yay >/dev/null 2>&1; then
 fi
 
 if [[ -n "${AUR_HELPER}" ]]; then
-  "${AUR_HELPER}" -S --needed onlyoffice-bin
+  "${AUR_HELPER}" -S --needed --noconfirm onlyoffice-bin proton-vpn-gtk-app
+else
+  echo "WARNING: No AUR helper available; ONLYOFFICE and Proton VPN were not installed."
 fi
 
-# ChatGPT: no third-party desktop binary is trusted by this repository.
-# Create a desktop shortcut to the official web application instead.
 install -d "${HOME}/.local/share/applications"
-
 cat > "${HOME}/.local/share/applications/chatgpt.desktop" <<'EOF'
 [Desktop Entry]
 Name=ChatGPT
@@ -45,4 +38,4 @@ Type=Application
 Categories=Network;Office;
 EOF
 
-echo "Requested applications configured."
+echo "Desktop applications configured."

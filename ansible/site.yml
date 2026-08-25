@@ -1,5 +1,5 @@
 ---
-- name: Omarchy workstation
+- name: Configure Omarchy workstation after installation
   hosts: localhost
   connection: local
   become: true
@@ -9,4 +9,3 @@
     - workstation_packages
     - zsh
     - ssh_config
-    - desktop_apps

@@ -5,13 +5,13 @@
       - firefox
       - bitwarden
       - obsidian
-      - proton-vpn-gtk-app
       - telegram-desktop
       - vlc
     state: present
     update_cache: true
 
 - name: Create ChatGPT web app launcher
+  become: false
   ansible.builtin.copy:
     dest: "{{ ansible_env.HOME }}/.local/share/applications/chatgpt.desktop"
     mode: "0644"

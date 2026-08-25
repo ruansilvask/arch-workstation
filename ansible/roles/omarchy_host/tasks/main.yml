@@ -4,20 +4,26 @@
     path: /sys/firmware/efi
   register: efi
 
-- name: Fail when not booted in UEFI
+- name: Require UEFI
   ansible.builtin.fail:
-    msg: "This project expects an UEFI boot."
+    msg: "Omarchy must be booted in UEFI mode."
   when: not efi.stat.exists
 
-- name: Verify Btrfs root
-  ansible.builtin.command: findmnt -n -t btrfs /
+- name: Read root filesystem
+  ansible.builtin.command: findmnt -no FSTYPE /
+  register: root_fstype
   changed_when: false
+
+- name: Require Btrfs root
+  ansible.builtin.fail:
+    msg: "Expected Omarchy root filesystem to be Btrfs."
+  when: root_fstype.stdout.strip() != "btrfs"
 
 - name: Verify systemd-boot
   ansible.builtin.command: bootctl is-installed
   changed_when: false
 
-- name: Verify AMD GPU
+- name: Detect AMD GPU
   ansible.builtin.shell: |
     set -o pipefail
     lspci | grep -Ei 'VGA|3D|Display' | grep -Ei 'AMD|ATI|Advanced Micro Devices'
@@ -25,8 +31,8 @@
     executable: /bin/bash
   changed_when: false
 
-- name: Install AMD graphics stack
-  ansible.builtin.package:
+- name: Install AMD userspace graphics stack
+  community.general.pacman:
     name:
       - mesa
       - lib32-mesa
@@ -34,3 +40,4 @@
       - lib32-vulkan-radeon
       - vulkan-tools
     state: present
+    update_cache: true

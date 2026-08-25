@@ -1,13 +1,39 @@
 # Architecture
 
-Omarchy owns the OS, Hyprland/Wayland, kernel, AMDGPU, Mesa/RADV, Btrfs,
-systemd-boot, PipeWire and Bluetooth.
+```text
+Official Omarchy ISO
+        |
+        v
+Arch + Hyprland + Wayland + Btrfs + systemd-boot
+        |
+        v
+arch-workstation bootstrap
+        |
+        +-- workstation packages
+        +-- Zsh
+        +-- SSH
+        +-- desktop applications
+        |
+        v
+gaming/
+        |
+        +-- AMD/Mesa/RADV host integration
+        +-- Distrobox
+        +-- Arch gaming container
+        +-- Steam
+        +-- Proton
+        +-- DXVK/VKD3D via Proton
+        +-- Gamescope
+        +-- MangoHud
+        +-- GameMode
+        +-- diagnostics/remediation
+        +-- game-specific configuration
+```
 
-arch-workstation configures the workstation.
+The host keeps the kernel-level AMDGPU driver and the display/session stack.
+The gaming container isolates the user-space gaming environment.
 
-gaming creates a disposable Distrobox environment. The external game library
-is persistent and outside the container lifecycle.
+The repository does not install KDE and does not install NVIDIA drivers.
 
-The NVIDIA driver is deliberately absent. The AMD kernel driver remains on the
-host; the container consumes host graphics device interfaces and userspace
-integration.
+`/mnt/jogos` is outside the container lifecycle and is explicitly bind-mounted
+into the gaming container.

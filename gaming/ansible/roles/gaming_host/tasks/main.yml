@@ -1,20 +1,23 @@
 ---
-- name: Install AMD gaming host stack
+- name: Install gaming host integration
   community.general.pacman:
     name:
-      - mesa
-      - lib32-mesa
-      - vulkan-radeon
-      - lib32-vulkan-radeon
-      - vulkan-tools
+      - distrobox
+      - podman
       - gamescope
       - mangohud
       - lib32-mangohud
       - gamemode
       - lib32-gamemode
-      - protontricks
-      - steam
-      - distrobox
-      - podman
+      - vulkan-tools
+      - mesa
+      - lib32-mesa
+      - vulkan-radeon
+      - lib32-vulkan-radeon
     state: present
     update_cache: true
+
+- name: Check persistent game library
+  ansible.builtin.command: findmnt /mnt/jogos
+  changed_when: false
+  failed_when: false

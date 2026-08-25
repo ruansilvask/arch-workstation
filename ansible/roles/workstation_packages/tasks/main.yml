@@ -31,8 +31,9 @@
       - jdk-openjdk
       - maven
       - gradle
-      - docker
-      - docker-compose
+      - yq
+      - distrobox
+      - podman
       - pipewire
       - pipewire-pulse
       - pipewire-alsa
@@ -40,23 +41,8 @@
       - wireplumber
       - bluez
       - bluez-utils
-      - distrobox
-      - podman
-      - steam
-      - gamescope
-      - mangohud
-      - lib32-mangohud
-      - gamemode
-      - lib32-gamemode
-      - protontricks
     state: present
     update_cache: true
-
-- name: Enable NetworkManager
-  ansible.builtin.systemd:
-    name: NetworkManager
-    enabled: true
-    state: started
 
 - name: Enable Bluetooth
   ansible.builtin.systemd:

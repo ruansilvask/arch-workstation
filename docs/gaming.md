@@ -1,16 +1,26 @@
-# Gaming implementation
+# Gaming
 
-The implementation is adapted from the real Ansible/Distrobox structure of
-AkitaOnRails/distrobox-gaming. The reference project is retained under
-`gaming/ansible/reference` for provenance and comparison.
+The Gaming module follows the Distrobox model used by AkitaOnRails'
+`distrobox-gaming` project, adapted for Omarchy + AMD.
 
-The adapted implementation is intentionally narrower:
+The original implementation is retained under `gaming/ansible/reference/`.
 
-- AMD instead of NVIDIA
-- Omarchy/Wayland instead of a generic desktop target
-- Steam-focused
-- selected games
-- external persistent library
-- automated diagnostics/remediation
+The active implementation focuses on:
 
-The reference project is not executed wholesale.
+- Omarchy/Hyprland/Wayland
+- AMDGPU + Mesa/RADV
+- Distrobox + Podman
+- Steam
+- Proton
+- DXVK/VKD3D through Proton
+- Gamescope
+- MangoHud
+- GameMode
+- Protontricks
+- automatic diagnostics
+- safe remediation
+- persistent `/mnt/jogos`
+- selected-game installation
+
+The first Steam authentication remains an explicit user action.
+The project never stores Steam credentials.

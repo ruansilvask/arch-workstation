@@ -16,7 +16,7 @@
   changed_when: false
   failed_when: false
 
-- name: Create gaming container
+- name: Create gaming container with persistent library
   ansible.builtin.command:
     argv:
       - distrobox
@@ -25,6 +25,8 @@
       - gaming
       - --image
       - archlinux:latest
+      - --volume
+      - /mnt/jogos:/mnt/jogos
       - --yes
   when: gaming_box.rc != 0
 
@@ -44,4 +46,4 @@
         gamemode lib32-gamemode protontricks
         vulkan-tools mesa lib32-mesa
         vulkan-radeon lib32-vulkan-radeon
-        wine winetricks git curl jq
+        wine winetricks git curl jq yq
