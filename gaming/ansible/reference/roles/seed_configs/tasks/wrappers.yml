@@ -1,0 +1,81 @@
+---
+- name: Install flycast-hires wrapper
+  ansible.builtin.copy:
+    src: wrappers/flycast-hires
+    dest: "{{ dg_box_home }}/bin/flycast-hires"
+    mode: "0755"
+    backup: true
+
+- name: Install supermodel-launch wrapper
+  # ES-DE bridge for Sega Model 3: the AUR package's own wrapper drops
+  # its arguments (no ROM ever reaches the binary) and seeds config
+  # paths this build doesn't read. This one seeds ~/.supermodel and
+  # passes the ROM through. See the wrapper header for details.
+  ansible.builtin.copy:
+    src: wrappers/supermodel-launch
+    dest: "{{ dg_box_home }}/bin/supermodel-launch"
+    mode: "0755"
+    backup: true
+
+- name: Install xenia-canary-launch wrapper
+  # ES-DE bridge that resolves a ROM path to its per-game config via
+  # Xenia Manager's games.json before invoking xenia_canary.exe inside
+  # the dg_xenia_prefix wineprefix. Defaults inside the script use $HOME
+  # to derive paths so it follows dg_box_home automatically.
+  ansible.builtin.copy:
+    src: wrappers/xenia-canary-launch
+    dest: "{{ dg_box_home }}/bin/xenia-canary-launch"
+    mode: "0755"
+    backup: true
+
+- name: Install shadps4-launch wrapper
+  # ES-DE bridge for multi-game PS4 support. Derives the CUSA title ID
+  # from the parent dir of the eboot.bin and auto-applies a matching
+  # <CUSA>.xml from the shadPS4 patches dir if present. Per-game JSON
+  # configs in custom_configs/ are picked up by shadPS4 itself.
+  ansible.builtin.copy:
+    src: wrappers/shadps4-launch
+    dest: "{{ dg_box_home }}/bin/shadps4-launch"
+    mode: "0755"
+    backup: true
+
+- name: Install azahar-launch wrapper
+  # Runs azahar with Select+L1/R1 mapped to Quick Load/Save via an
+  # evsieve keyboard-injection hook. Falls back to plain azahar when
+  # the pad/evsieve/uinput are unavailable.
+  ansible.builtin.copy:
+    src: wrappers/azahar-launch
+    dest: "{{ dg_box_home }}/bin/azahar-launch"
+    mode: "0755"
+    backup: true
+
+- name: Install melonds-launch wrapper
+  # Runs melonDS with the 8BitDo left stick synthesized onto the DS
+  # d-pad via an evsieve virtual pad. Falls back to a plain launch when
+  # the pad/evsieve/uinput aren't available, so it never blocks a game.
+  ansible.builtin.copy:
+    src: wrappers/melonds-launch
+    dest: "{{ dg_box_home }}/bin/melonds-launch"
+    mode: "0755"
+    backup: true
+
+- name: Install macOS-style `open` shim
+  # Cheat Engine's Patreon OAuth flow shells out to `open <url>` (and
+  # so do some Electron-based apps). The distrobox ships an
+  # /usr/local/bin/xdg-open symlinked to distrobox-host-exec, which
+  # routes through Flatpak's HostCommand portal — this Hyprland host
+  # doesn't run that portal so the chain dead-ends. The shim bypasses
+  # everything and calls org.freedesktop.portal.OpenURI on the host
+  # session bus (mounted via /run/host) directly, which
+  # xdg-desktop-portal-hyprland services natively. URLs land in the
+  # host's default browser without any Flatpak or host-spawn deps.
+  #
+  # Lives in $HOME/bin so the box's interactive zsh PATH (which
+  # prepends ~/bin) finds it. Apps that shell out non-interactively
+  # also pick it up because their parent shell is the interactive one
+  # that launched them.
+  ansible.builtin.copy:
+    src: wrappers/open
+    dest: "{{ dg_box_home }}/bin/open"
+    mode: "0755"
+    backup: true

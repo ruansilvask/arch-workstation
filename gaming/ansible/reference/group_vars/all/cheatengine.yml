@@ -1,0 +1,40 @@
+# Cheat Engine for single-player Steam Proton / Wine games.
+#
+# This setup is OFFLINE / SINGLE-PLAYER ONLY. Do not use against
+# multiplayer or anti-cheat-protected titles (VAC / EAC / BattlEye) —
+# attaching CE will trigger bans regardless of host OS.
+#
+# Distribution: native Linux Cheat Engine 7.6.6 (release 4 as of
+# May 2026), shipped as a portable zip from cheatengine.org. No Wine,
+# no innoextract, no Proton-prefix gymnastics; CE attaches to Wine
+# processes via ptrace just like any other Linux process.
+#
+# Drop CheatEngineLinux766-4.zip at dg_cheatengine_linux_zip and run:
+#   ansible-playbook install-cheatengine.yml
+#
+# The zip is downloaded from https://www.cheatengine.org/downloads.php
+
+# Logical version of the Linux build (e.g. "7.6.6") and the release
+# suffix the upstream zip name uses (CheatEngineLinux766-N.zip). Keep
+# these as the only knobs the user touches when bumping versions.
+dg_cheatengine_linux_version: "7.6.6"
+dg_cheatengine_linux_release: "4"
+dg_cheatengine_linux_version_flat: "{{ dg_cheatengine_linux_version | replace('.', '') }}"
+dg_cheatengine_linux_archive_name: "CheatEngineLinux{{ dg_cheatengine_linux_version_flat }}-{{ dg_cheatengine_linux_release }}"
+
+dg_cheatengine_source_dir: "{{ dg_pc_racing_source_root }}/CheatEngine"
+dg_cheatengine_linux_zip: "{{ dg_cheatengine_source_dir }}/{{ dg_cheatengine_linux_archive_name }}.zip"
+
+# Extraction yields <install_root>/<archive_name>/cheatengine-x86_64.
+# The wrapper cd's into the archive dir before exec because CE expects
+# its sibling .so libraries to be discoverable via relative path.
+dg_cheatengine_install_root: "{{ dg_box_home }}/tools/cheat-engine"
+dg_cheatengine_dir: "{{ dg_cheatengine_install_root }}/{{ dg_cheatengine_linux_archive_name }}"
+dg_cheatengine_exe: "{{ dg_cheatengine_dir }}/cheatengine-x86_64"
+
+dg_cheatengine_wrapper_bin: "{{ dg_box_home }}/bin/cheat-engine"
+
+# Windows CE Inno installer used by `cheat-engine --proton-install`.
+# Derived from the same source dir as the Linux zip; override here or
+# at runtime via DG_CHEATENGINE_WIN_INSTALLER.
+dg_cheatengine_win_installer: "{{ dg_cheatengine_source_dir }}/CheatEngine76.exe"

@@ -1,28 +1,10 @@
 #!/usr/bin/env bash
 set -u
-
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-STATUS=0
-
-run_check() {
-  local label="$1"
-  local script="$2"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+status=0
+for s in gpu vulkan steam proton games; do
+  echo "===== $s ====="
+  if ! "$ROOT/gaming/diagnostics/$s/check.sh"; then status=1; fi
   echo
-  echo "========================================"
-  echo "${label}"
-  echo "========================================"
-  if "${ROOT_DIR}/${script}"; then
-    echo "[PASS] ${label}"
-  else
-    echo "[FAIL] ${label}"
-    STATUS=1
-  fi
-}
-
-run_check "GPU" gaming/diagnostics/gpu/check.sh
-run_check "Vulkan" gaming/diagnostics/vulkan/check.sh
-run_check "Steam" gaming/diagnostics/steam/check.sh
-run_check "Proton" gaming/diagnostics/proton/check.sh
-run_check "Game library" gaming/diagnostics/games/check.sh
-
-exit "${STATUS}"
+done
+exit "$status"

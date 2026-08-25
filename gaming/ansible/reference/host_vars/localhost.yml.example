@@ -1,0 +1,149 @@
+# Machine-specific overrides.
+# Copy to localhost.yml and edit for your setup.
+#
+# UID/GID used inside the container (match your NAS / file-owner uid).
+# dg_host_uid: 1000
+# dg_host_gid: 1000
+#
+# Host data/ROM layout. Defaults assume this maintainer's local mounts;
+# point these at your own writable storage and game/BIOS library.
+# dg_data_root: /home/me/gaming
+# dg_external_games_root: /media/games
+# dg_emudeck_root: "{{ dg_external_games_root }}/EmuDeck"
+# dg_roms_final_root: "{{ dg_external_games_root }}/ROMS_FINAL"
+# dg_external_usb_games_root: /run/media/me/STEAM
+#
+# Steam library root on the host. This is the ONE host-sudo target in the
+# whole playbook set: create_box chows it to the box UID/GID before the
+# container exists, so `site.yml` needs working host sudo (--ask-become-pass
+# or a NOPASSWD entry) the first time it runs.
+# dg_steam_root: "{{ dg_data_root }}/steam"
+#
+# Roots derived from dg_emudeck_root (override individually only if
+# your layout diverges from EmuDeck's default):
+# dg_rom_root:        "{{ dg_emudeck_root }}/roms"
+# dg_rom_mid_root:    "{{ dg_emudeck_root }}/roms_mid"
+# dg_rom_heavy_root:  "{{ dg_emudeck_root }}/roms_heavy"
+# dg_rom_rare_root:   "{{ dg_emudeck_root }}/roms_rare"
+# dg_bios_root:       "{{ dg_emudeck_root }}/Emulation/bios"
+#
+# libretro cheat DB (clone of github.com/libretro/libretro-database).
+# Used by DuckStation to pull GT2 widescreen fix packs. Skip this
+# variable if you don't clone the DB — the DuckStation cheats task
+# warns and moves on if the source is missing.
+# dg_libretro_cheats_dir: /path/to/libretro-database/cht
+#
+# PCSX2 texture-pack root. Expects GT4/Enthusia asset subdirs
+# below (see docs/setup-assets.md for the exact filenames + links).
+# Skip if you don't want PCSX2 texture replacements.
+# dg_pcsx2_ps2_root: /path/to/ps2
+#
+# PS3 DLC/patch staging dir (PKG files per title-ID subdir).
+# dg_ps3_dlc_source: "{{ dg_rom_heavy_root }}/ps3-DLC"
+#
+# Switch updates staging dir (NSP files).
+# dg_switch_updates_source: "{{ dg_rom_heavy_root }}/switch_updates"
+#
+# External Steam library root used by optional Steam-game fix roles. Point at
+# the directory that contains steamapps/, not steamapps itself.
+# dg_external_usb_games_root: /run/media/me/STEAM
+# dg_mgs_master_steam_library_root: "{{ dg_external_usb_games_root }}"
+# dg_mgs_master_steam_localconfig: /home/me/.local/share/Steam/userdata/<steamid>/config/localconfig.vdf
+#
+# RE4 HD Project (opt-in role install_re4_hd / --tags re4_hd). Overlays the
+# HD remaster onto Steam "Resident Evil 4 (2005)" (appid 254700, NOT the 2023
+# remake). Stage the OFFICIAL download (BIO4/ + Bin32/) here; see docs/re4-hd.md.
+# dg_re4_hd_source: "{{ dg_external_games_root }}/mods/re4-hd-project"
+# dg_re4_hd_steam_localconfig: /home/me/.local/share/Steam/userdata/<steamid>/config/localconfig.vdf
+#
+# GTA IV mod set (opt-in role install_gta4_mods / --tags gta4_mods). Requires
+# GTA IV Complete Edition (appid 12210, GTAIV.exe 1.2.0.59). Stage the manual
+# Nexus downloads under dg_gta4_staging_root; see docs/gta4-mods.md.
+# dg_gta4_staging_root: "{{ dg_roms_final_root }}/PC/NexusMods/gta4"
+# dg_gta4_steam_library_root: /run/media/me/STEAM   # if GTA IV is on a USB lib
+# dg_gta4_steam_localconfig: /home/me/.local/share/Steam/userdata/<steamid>/config/localconfig.vdf
+#
+# WRC 4 mod set (opt-in role install_wrc4_mods / --tags wrc4_mods). WRC 4 is
+# delisted; it defaults to the USB Steam library. The mod (loose camera +
+# realistic tyres) replaces DATA.MIX. See docs/wrc4-mods.md.
+# dg_wrc4_steam_library_root: /run/media/me/STEAM   # if WRC 4 mounts elsewhere
+# dg_wrc4_staging_root: "{{ dg_roms_final_root }}/PC/NexusMods/wrc4"
+#
+# shadPS4 DLC/addon install dir (kept OUTSIDE the PS4 game tree so
+# ES-DE's .bin scan doesn't pick up addon files as fake games).
+# dg_shadps4_addon_install_dir: "{{ dg_emudeck_root }}/roms_rare/ps4-addons"
+#
+# ES-DE scraped-media root (media-symlinks task bridges EmuDeck/Skraper
+# art into it; see roles/configure_esde/tasks/media-symlinks.yml).
+# dg_esde_media_dir: "{{ dg_box_home }}/ES-DE/downloaded_media"
+#
+# Steam localconfig.vdf for the lib32-NVIDIA launch-option role.
+# Account-specific — find yours under Steam userdata/<steamid>/config/.
+# dg_steam_lib32_nvidia_localconfig: /path/to/Steam/userdata/<steamid>/config/localconfig.vdf
+#
+# 7th Heaven / MateriaForge install root. The 7th-heaven wrapper also
+# honors the DG_7TH_HEAVEN_INSTALL_ROOT env var at runtime if you
+# installed 7th Heaven somewhere else interactively.
+# dg_7th_heaven_install_root: "{{ dg_box_home }}/tools/7th-heaven"
+#
+# SMM2 offline levels (opt-in role install_smm2_levels). Profile UUID is
+# machine-specific: ls <eden>/nand/user/save/0000000000000000/.
+# dg_smm2_eden_profile: <YOUR-EDEN-PROFILE-UUID>
+# dg_smm2_levels_max_uploaded: "2019-10-01"   # "" once game updated to 3.x
+#
+# SDL controller allow-list for the pc-racing games (comma-separated
+# 0xVID/0xPID). Add your pads' IDs (lsusb) — unlisted devices stay
+# invisible to the old games on purpose (filters phantom HID pads).
+# dg_pc_racing_gamepad_only: "0x2dc8/0x310b,0x045e/0x0b12"
+#
+# Staging root for the pc-racing installers (CMR 2.0/2/3/04, OutRun 2006,
+# Sega Rally 2/Revo, Sonic P-06) — CD extracts / repacks you source yourself.
+# dg_pc_racing_source_root: "{{ dg_roms_final_root }}/PC"
+#
+# Sonic Unleashed Recomp source staging (opt-in install-unleashed-recomp.yml
+# / --tags unleashed_recomp). Empty by default — no reliable public URL, you
+# source your own X360 ISO/title-update/DLC.
+# dg_unleashed_recomp_game_source: /path/to/unleashed/game
+# dg_unleashed_recomp_iso_source: /path/to/SonicUnleashed.iso
+# dg_unleashed_recomp_title_update_source: /path/to/title_update_dir
+# dg_unleashed_recomp_title_update_zip_source: /path/to/title_update.zip
+# dg_unleashed_recomp_dlc_source: /path/to/dlc_dir
+#
+# WipEout Phantom Edition (opt-in role install_wipeout_pe / --tags wipeout_pe).
+# Windows x64 binary under Wine; needs a WipEout USA PSX rip, converted from
+# the CHD to a multi-bin bin/cue. Defaults to psx/WipEout (USA).chd. See
+# docs/wipeout-pe.md.
+# dg_wipeout_pe_chd_src: "{{ dg_roms_final_root }}/psx/WipEout (USA).chd"
+#
+# CannonBall / OutRun engine (opt-in role install_cannonball / --tags
+# cannonball). Built from source; needs the OutRun Rev B arcade romset.
+# Defaults to arcade/mame/outrun_dup2.zip. See docs/cannonball.md.
+# dg_cannonball_rom_zip: "{{ dg_roms_final_root }}/arcade/mame/outrun_dup2.zip"
+#
+# Super Mario Bros. Remastered (opt-in role install_smb_remastered /
+# --tags smb_remastered). Native Godot build; needs an SMB1 NES ROM, whose
+# .nes the role stages into the game folder for auto-import. See
+# docs/smb-remastered.md.
+# dg_smb_remastered_rom_zip: "{{ dg_roms_final_root }}/nes/Super Mario Bros. (1985-09-13)(Nintendo)(JP-US).zip"
+#
+# G-Diffuser / F-Zero X PC port (opt-in role install_gdiffuser / --tags
+# gdiffuser). Native libultraship build; needs THREE dumps staged under
+# canonical names automatically: F-Zero X US rev0 ROM, the translated 64DD
+# Expansion Kit disk, and a ~4MB 64DD IPL ROM. See docs/gdiffuser.md.
+# dg_gdiffuser_rom_zip: "{{ dg_roms_final_root }}/sdcard-bundle-6666/F-Zero X (U) [!].zip"
+# dg_gdiffuser_ek_disk_zip: "{{ dg_roms_final_root }}/n64/EFZE_ENGLISHv02_DISK.zip"
+# dg_gdiffuser_ipl_zip: "{{ dg_roms_final_root }}/n64/64DD BIOS/IPL4USA.zip"
+#
+# Native Doom II RT (opt-in install-prboom-plus-rt.yml). Normally the role
+# discovers DOOM2.WAD below dg_steam_root or dg_external_usb_games_root. Use an
+# explicit source only when neither configured Steam root matches the layout.
+# dg_prboom_rt_doom2_wad_source: /path/to/legal/DOOM2.WAD
+# dg_prboom_rt_addon_source: /path/to/doom2rt-0.9.zip
+#
+# Wine 10.17+ defaults winex11.drv to the EGL OpenGL backend, which on
+# dual-GPU boxes can resolve to Mesa llvmpipe / an iGPU instead of the
+# discrete NVIDIA GPU, breaking wined3d/dgVoodoo GL games (black screen
+# or crash). All wine-based roles (pc_racing, m2emulator, sega_rally,
+# sonic_p06, model1) force the GLX backend via UseEGL=N by default.
+# Set false only if a future wine build drops the EGL regression.
+# dg_wine_force_glx: true

@@ -1,0 +1,280 @@
+---
+- name: Create Xenia Manager directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ dg_xenia_prefix }}"
+    - "{{ dg_xenia_cache_dir }}"
+    - "{{ dg_xenia_manager_releases_dir }}"
+    - "{{ dg_box_home }}/bin"
+
+# Enable multilib and install Wine packages inside the box
+
+- name: Check if multilib is enabled
+  ansible.builtin.shell: "{{ dg_in_box }} grep -q '^\\[multilib\\]$' /etc/pacman.conf"
+  register: _multilib_check
+  changed_when: false
+  failed_when: false
+
+- name: Enable multilib repository inside box
+  ansible.builtin.shell: |
+    {{ dg_in_box }} sudo sh -c '
+      cat >> /etc/pacman.conf <<MULTILIB
+
+    [multilib]
+    Include = /etc/pacman.d/mirrorlist
+    MULTILIB
+    '
+  when: _multilib_check.rc != 0
+
+# -Sy (sync DB) not -Syu (full upgrade): the latter couples this role to
+# whatever unrelated upgrade conflicts are pending in the box (e.g. a
+# dolphin-emu/sfml version mismatch blocking full upgrade), which would
+# abort install-xenia even though wine itself installs cleanly. Full
+# upgrades live in bootstrap_packages.
+- name: Install Xenia pacman packages inside box
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} sudo pacman -Sy --needed --noconfirm
+    {{ dg_xenia_pacman_packages | join(' ') }}
+  register: _xenia_pacman
+  changed_when: "'installing' in _xenia_pacman.stdout"
+
+# Wine prefix initialization
+
+- name: Check if Wine prefix is initialized
+  ansible.builtin.stat:
+    path: "{{ dg_xenia_prefix }}/system.reg"
+  register: _prefix_exists
+
+- name: Initialize Wine prefix
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} env
+    WINEPREFIX="{{ dg_xenia_prefix }}"
+    WINEARCH=win64
+    WINEDEBUG=-all
+    wineboot -u
+  when: not _prefix_exists.stat.exists
+
+- name: Wait for wineserver after init
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} env
+    WINEPREFIX="{{ dg_xenia_prefix }}"
+    WINEDEBUG=-all
+    wineserver -w
+  when: not _prefix_exists.stat.exists
+
+# Link Xbox 360 game directory
+
+- name: Stat Xbox 360 game directory
+  ansible.builtin.stat:
+    path: "{{ dg_xenia_game_dir }}"
+  register: _xenia_game_dir
+
+- name: "Link Xbox 360 game directory as G: drive"
+  ansible.builtin.file:
+    src: "{{ dg_xenia_game_dir }}"
+    dest: "{{ dg_xenia_prefix }}/dosdevices/g:"
+    state: link
+  when: _xenia_game_dir.stat.exists | default(false)
+
+# Windows runtime dependencies
+
+- name: Download .NET Desktop Runtime
+  ansible.builtin.get_url:
+    url: "{{ dg_xenia_dotnet_url }}"
+    dest: "{{ dg_xenia_cache_dir }}/windowsdesktop-runtime-win-x64.exe"
+    mode: "0644"
+
+- name: Download Visual C++ Redistributable
+  ansible.builtin.get_url:
+    url: "{{ dg_xenia_vcredist_url }}"
+    dest: "{{ dg_xenia_cache_dir }}/vc_redist.x64.exe"
+    mode: "0644"
+
+- name: Install .NET Desktop Runtime via Wine
+  ansible.builtin.shell: |
+    {{ dg_in_box }} env \
+      WINEPREFIX="{{ dg_xenia_prefix }}" \
+      WINEARCH=win64 \
+      WINEDEBUG=-all \
+      wine "Z:{{ dg_xenia_cache_dir }}/windowsdesktop-runtime-win-x64.exe" /install /quiet /norestart || true
+    {{ dg_in_box }} env \
+      WINEPREFIX="{{ dg_xenia_prefix }}" \
+      WINEDEBUG=-all \
+      wineserver -w
+  changed_when: true
+
+- name: Install Visual C++ Redistributable via Wine
+  ansible.builtin.shell: |
+    {{ dg_in_box }} env \
+      WINEPREFIX="{{ dg_xenia_prefix }}" \
+      WINEARCH=win64 \
+      WINEDEBUG=-all \
+      wine "Z:{{ dg_xenia_cache_dir }}/vc_redist.x64.exe" /install /quiet /norestart || true
+    {{ dg_in_box }} env \
+      WINEPREFIX="{{ dg_xenia_prefix }}" \
+      WINEDEBUG=-all \
+      wineserver -w
+  changed_when: true
+
+# Fetch and install Xenia Manager
+
+- name: Fetch Xenia Manager release info
+  ansible.builtin.uri:
+    url: "{{ dg_xenia_manager_release_api }}"
+    return_content: true
+    headers:
+      Accept: application/vnd.github.v3+json
+  register: _xenia_release
+  when: dg_xenia_manager_zip_url | length == 0
+
+- name: Extract Xenia Manager tag and URL from GitHub
+  # Take the first .zip asset. Xenia Manager ships a single
+  # `xenia_manager.zip`. The previous `<win-x64-zip> if <...> else <any-zip>`
+  # form broke under Ansible's native Jinja, which eagerly evaluates the
+  # UNTAKEN branch too: when no asset matched the win/x64 pattern, the
+  # `| first` in that branch raised "No first item, sequence was empty"
+  # even though the else branch would have matched. Concatenating a
+  # preferred+fallback list and mapping to the URL before `first` avoids
+  # any `first` on a possibly-empty list.
+  ansible.builtin.set_fact:
+    _xenia_tag: "{{ _xenia_release.json.tag_name }}"
+    _xenia_zip_url: "{{ _xenia_release.json.assets | selectattr('name', 'match', '.*\\.zip$') | map(attribute='browser_download_url') | list | first }}"
+  when: dg_xenia_manager_zip_url | length == 0
+
+- name: Use manually specified Xenia Manager URL
+  ansible.builtin.set_fact:
+    _xenia_tag: manual
+    _xenia_zip_url: "{{ dg_xenia_manager_zip_url }}"
+  when: dg_xenia_manager_zip_url | length > 0
+
+- name: Download Xenia Manager zip
+  ansible.builtin.get_url:
+    url: "{{ _xenia_zip_url }}"
+    dest: "{{ dg_xenia_cache_dir }}/{{ _xenia_tag }}.zip"
+    mode: "0644"
+
+- name: Check if release is already extracted
+  ansible.builtin.stat:
+    path: "{{ dg_xenia_manager_releases_dir }}/{{ _xenia_tag }}"
+  register: _xenia_extracted
+
+- name: Ensure Xenia Manager release directory exists
+  # unarchive requires an existing dest dir; the versioned release folder
+  # survived on the long-lived box, so this was never needed until a
+  # from-scratch rebuild.
+  ansible.builtin.file:
+    path: "{{ dg_xenia_manager_releases_dir }}/{{ _xenia_tag }}"
+    state: directory
+    mode: "0755"
+  when: not _xenia_extracted.stat.exists
+
+- name: Extract Xenia Manager
+  ansible.builtin.unarchive:
+    src: "{{ dg_xenia_cache_dir }}/{{ _xenia_tag }}.zip"
+    dest: "{{ dg_xenia_manager_releases_dir }}/{{ _xenia_tag }}"
+    remote_src: true
+  when: not _xenia_extracted.stat.exists
+
+- name: Find XeniaManager.exe in extracted directory
+  ansible.builtin.find:
+    paths: "{{ dg_xenia_manager_releases_dir }}/{{ _xenia_tag }}"
+    patterns: XeniaManager.exe
+    recurse: true
+  register: _xenia_exe_files
+
+- name: Assert Xenia Manager executable found
+  ansible.builtin.assert:
+    that: _xenia_exe_files.files | length > 0
+    fail_msg: "XeniaManager.exe not found after extracting {{ _xenia_tag }}.zip"
+
+- name: Resolve the currently-linked (previous) Xenia Manager release
+  # Captured BEFORE relinking `current`, so we can carry its state into a
+  # newly-downloaded release.
+  ansible.builtin.command: readlink -f "{{ dg_xenia_manager_current }}"
+  register: _xenia_prev_release
+  changed_when: false
+  failed_when: false
+
+- name: Migrate Xenia Manager state into the new release
+  # Xenia Manager is portable: its library and everything it references
+  # live NEXT TO the versioned exe — Config/ (games.json), GameData/
+  # (artwork), Emulators/Xenia Canary/ (per-game .config.toml + content/
+  # = saves & DLC), Downloads/ and Cache/. A freshly-downloaded release
+  # ships those empty, so switching `current` to a new version shows a
+  # BLANK library and orphans the ES-DE per-game configs unless we carry
+  # the old state forward. Copy (not move) so the previous release stays
+  # as a rollback backup. Self-guards: only runs when the new release has
+  # no library yet and a different previous release with one exists.
+  ansible.builtin.shell: |
+    set -eu
+    old="{{ _xenia_prev_release.stdout | default('') }}"
+    new="{{ _xenia_exe_files.files[0].path | dirname }}"
+    [ -n "$old" ] && [ -d "$old" ] && [ "$old" != "$new" ] || { echo "no-prev-release"; exit 0; }
+    new_count=$(python3 -c "import json,sys;print(len(json.load(open('$new/Config/games.json'))))" 2>/dev/null || echo 0)
+    [ "$new_count" = "0" ] || { echo "new-already-populated"; exit 0; }
+    old_count=$(python3 -c "import json,sys;print(len(json.load(open('$old/Config/games.json'))))" 2>/dev/null || echo 0)
+    [ "$old_count" != "0" ] || { echo "prev-empty-nothing-to-migrate"; exit 0; }
+    for d in Config GameData Emulators Downloads Cache; do
+      if [ -d "$old/$d" ]; then
+        rm -rf "$new/$d"
+        cp -a "$old/$d" "$new/$d"
+      fi
+    done
+    echo "migrated-xenia-state ${old_count}-games"
+  register: _xenia_state_migration
+  changed_when: "'migrated-xenia-state' in _xenia_state_migration.stdout"
+
+- name: Link current Xenia Manager release
+  ansible.builtin.file:
+    src: "{{ _xenia_exe_files.files[0].path | dirname }}"
+    dest: "{{ dg_xenia_manager_current }}"
+    state: link
+    force: true
+
+- name: Enforce optimal Xenia Canary settings on all game configs + default template
+  # ES-DE launches xenia_canary.exe with each game's per-game .config.toml
+  # (bin/xenia-canary-launch), and Xenia Manager clones the root
+  # xenia-canary.config.toml for newly-added games. Both live in
+  # Emulators/Xenia Canary/config/ and both match *.config.toml, so this
+  # single sweep keeps ES-DE launches AND new games on the tuned universal
+  # knobs (see dg_xenia_optimal_config). Only the listed keys are rewritten;
+  # game-specific tuning on other keys is preserved. Runs on the controller
+  # against the bind-mounted config dir (plain-text edit, no container).
+  ansible.builtin.shell:
+    cmd: |
+      python3 - <<'PY'
+      import re, glob, os
+      cfg = "{{ dg_xenia_manager_current }}/Emulators/Xenia Canary/config"
+      settings = {
+      {% for s in dg_xenia_optimal_config %}
+          "{{ s.key }}": r'''{{ s.value }}''',
+      {% endfor %}
+      }
+      changed = 0
+      for p in sorted(glob.glob(os.path.join(cfg, "*.config.toml"))):
+          s = open(p, encoding="utf-8").read(); orig = s
+          for k, v in settings.items():
+              s = re.sub(r'(?m)^(' + re.escape(k) + r'\s*=\s*)\S+',
+                         lambda m, v=v: m.group(1) + v, s, count=1)
+          if s != orig:
+              open(p, "w", encoding="utf-8").write(s); changed += 1
+      print(f"xenia-optimal-changed {changed}")
+      PY
+  register: _xenia_optimal_config
+  changed_when: "'xenia-optimal-changed 0' not in _xenia_optimal_config.stdout"
+  when: dg_xenia_apply_optimal_config | bool
+
+# Wrapper script and desktop entry
+
+- name: Deploy Xenia Manager launcher wrapper
+  ansible.builtin.template:
+    src: xenia-manager.sh.j2
+    dest: "{{ dg_xenia_manager_bin }}"
+    mode: "0755"
+
+- name: Refresh desktop launchers
+  ansible.builtin.include_role:
+    name: desktop_apps

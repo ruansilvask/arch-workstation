@@ -1,5 +1,0 @@
----
-# gaming_packages: implementation must remain idempotent.
-- name: Reconcile gaming_packages
-  ansible.builtin.debug:
-    msg: "Reconcile gaming_packages for profile { gaming_profile }"

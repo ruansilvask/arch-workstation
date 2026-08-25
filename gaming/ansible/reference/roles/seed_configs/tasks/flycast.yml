@@ -1,0 +1,68 @@
+---
+- name: Ensure Flycast data directory exists
+  ansible.builtin.file:
+    path: "{{ dg_flycast_data_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Symlink arcade BIOS sets into Flycast data dir
+  # NAOMI/NAOMI2/Atomiswave games silently fail to boot without these;
+  # flycast does not look in the EmuDeck bios tree on its own.
+  ansible.builtin.file:
+    src: "{{ dg_bios_root }}/dc/{{ item }}"
+    dest: "{{ dg_flycast_data_dir }}/{{ item }}"
+    state: link
+    force: true
+    follow: false
+  loop: "{{ dg_flycast_bios_links }}"
+
+- name: Check Flycast NVRAM seed marker
+  ansible.builtin.stat:
+    path: "{{ dg_flycast_data_dir }}/.dg-nvmem-seeded"
+  register: _flycast_nvmem_marker
+
+- name: Check pre-configured NAOMI NVRAM pack exists
+  ansible.builtin.stat:
+    path: "{{ dg_flycast_nvmem_source }}"
+  register: _flycast_nvmem_source
+  when: not _flycast_nvmem_marker.stat.exists
+
+- name: Seed pre-configured NAOMI/NAOMI2 NVRAM (Free Play / easy)
+  # One-time overlay of the per-game Test-menu settings (both naomi and
+  # naomi2). Existing .nvmem/.eeprom backed up (nothing destroyed); the
+  # marker prevents reruns clobbering in-game changes. Copies only the
+  # per-game NVRAM, not the dir's other contents.
+  ansible.builtin.shell: >-
+    rsync -a --info=NAME --include='*.nvmem' --include='*.eeprom' --exclude='*'
+    --backup --backup-dir='{{ dg_flycast_data_dir }}/nvmem.pre-easymode'
+    '{{ dg_flycast_nvmem_source }}/'
+    '{{ dg_flycast_data_dir }}/'
+    && touch '{{ dg_flycast_data_dir }}/.dg-nvmem-seeded'
+  register: _flycast_nvmem_seed
+  changed_when: "'.nvmem' in _flycast_nvmem_seed.stdout or '.eeprom' in _flycast_nvmem_seed.stdout"
+  when:
+    - not _flycast_nvmem_marker.stat.exists
+    - _flycast_nvmem_source.stat.exists and _flycast_nvmem_source.stat.isdir
+
+- name: Check if Flycast config exists
+  ansible.builtin.stat:
+    path: "{{ dg_flycast_ini }}"
+  register: _flycast_ini
+
+- name: Set Flycast INI keys when config exists
+  community.general.ini_file:
+    path: "{{ dg_flycast_ini }}"
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    backup: true
+    mode: "0644"
+  loop: "{{ dg_flycast_settings }}"
+  loop_control:
+    label: "[{{ item.section }}] {{ item.option }}"
+  when: _flycast_ini.stat.exists
+
+- name: Note if Flycast config not found
+  ansible.builtin.debug:
+    msg: "Flycast config not found yet; wrapper will force critical runtime settings"
+  when: not _flycast_ini.stat.exists

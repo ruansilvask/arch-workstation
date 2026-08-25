@@ -1,0 +1,131 @@
+---
+- name: Create SpaghettiKart directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ dg_spaghettikart_root }}"
+    - "{{ dg_spaghettikart_cache_dir }}"
+    - "{{ dg_spaghettikart_install_dir }}"
+    - "{{ dg_spaghettikart_install_dir }}/mods"
+    - "{{ dg_box_home }}/bin"
+
+- name: Install SpaghettiKart build/runtime dependencies inside box
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} sudo pacman -S --needed --noconfirm
+    {{ dg_spaghettikart_pacman_packages | join(' ') }}
+  register: _spaghettikart_pacman
+  changed_when: "'installing' in _spaghettikart_pacman.stdout or 'upgrading' in _spaghettikart_pacman.stdout"
+
+- name: Download pinned SpaghettiKart release ZIP
+  ansible.builtin.get_url:
+    url: "{{ dg_spaghettikart_asset_url }}"
+    dest: "{{ dg_spaghettikart_cache_dir }}/{{ dg_spaghettikart_asset_name }}"
+    checksum: "sha256:{{ dg_spaghettikart_asset_sha256 }}"
+    mode: "0644"
+
+- name: Download MK64 Reloaded HD pack for SpaghettiKart
+  ansible.builtin.get_url:
+    url: "{{ dg_spaghettikart_hd_pack_url }}"
+    dest: "{{ dg_spaghettikart_cache_dir }}/{{ dg_spaghettikart_hd_pack_name }}"
+    checksum: "sha256:{{ dg_spaghettikart_hd_pack_sha256 }}"
+    mode: "0644"
+
+- name: Check out SpaghettiKart source for asset extraction
+  ansible.builtin.shell: |
+    set -eu
+    if [ -d "{{ dg_spaghettikart_source_dir }}/.git" ] &&
+       [ -f "{{ dg_spaghettikart_source_dir }}/.dg-source-ref" ] &&
+       grep -qx "{{ dg_spaghettikart_git_ref }}" "{{ dg_spaghettikart_source_dir }}/.dg-source-ref" &&
+       [ "$(git -C "{{ dg_spaghettikart_source_dir }}" rev-parse HEAD)" = "{{ dg_spaghettikart_git_ref }}" ]; then
+      exit 0
+    fi
+
+    rm -rf "{{ dg_spaghettikart_source_dir }}"
+    git clone "{{ dg_spaghettikart_repo_url }}" "{{ dg_spaghettikart_source_dir }}"
+    cd "{{ dg_spaghettikart_source_dir }}"
+    git checkout "{{ dg_spaghettikart_git_ref }}"
+    git submodule update --init torch libultraship
+    test "$(git -C torch rev-parse HEAD)" = "{{ dg_spaghettikart_torch_ref }}"
+    test "$(git -C libultraship rev-parse HEAD)" = "{{ dg_spaghettikart_libultraship_ref }}"
+    printf '%s\n' "{{ dg_spaghettikart_git_ref }}" > .dg-source-ref
+    printf '%s\n' 'checked-out-spaghettikart-source'
+  register: _spaghettikart_source
+  changed_when: "'checked-out-spaghettikart-source' in _spaghettikart_source.stdout"
+
+- name: Prepare verified Mario Kart 64 US baserom for SpaghettiKart
+  ansible.builtin.include_role:
+    name: n64_rom_prepare
+  vars:
+    n64_rom_label: Mario Kart 64 US
+    n64_rom_src: "{{ dg_spaghettikart_rom_source }}"
+    n64_rom_dst: "{{ dg_spaghettikart_source_dir }}/baserom.us.z64"
+    n64_rom_sha1: "{{ dg_spaghettikart_rom_sha1 }}"
+
+- name: Generate SpaghettiKart mk64.o2r from verified ROM
+  ansible.builtin.shell: |
+    {{ dg_in_box }} sh -lc '
+      set -eu
+      cd "{{ dg_spaghettikart_source_dir }}"
+      if [ -s "{{ dg_spaghettikart_build_dir }}/mk64.o2r" ] &&
+         [ -f .dg-assets-ref ] &&
+         grep -qx "{{ dg_spaghettikart_install_id }}" .dg-assets-ref; then
+        exit 0
+      fi
+      cmake -S . -B "{{ dg_spaghettikart_build_dir }}" -G Ninja -DCMAKE_BUILD_TYPE=Release
+      cmake --build "{{ dg_spaghettikart_build_dir }}" --target ExtractAssets -j"$(nproc)"
+      test -s "{{ dg_spaghettikart_build_dir }}/mk64.o2r"
+      printf "%s\n" "{{ dg_spaghettikart_install_id }}" > .dg-assets-ref
+      printf "%s\n" "generated-spaghettikart-assets {{ dg_spaghettikart_install_id }}"
+    '
+  register: _spaghettikart_assets
+  changed_when: "'generated-spaghettikart-assets' in _spaghettikart_assets.stdout"
+
+- name: Install SpaghettiKart AppImage release and generated assets
+  ansible.builtin.shell: |
+    {{ dg_in_box }} sh -lc '
+      set -eu
+      if [ -x "{{ dg_spaghettikart_install_dir }}/spaghetti.appimage" ] &&
+         [ -s "{{ dg_spaghettikart_install_dir }}/mk64.o2r" ] &&
+         [ -f "{{ dg_spaghettikart_install_dir }}/.dg-installed-ref" ] &&
+         grep -qx "{{ dg_spaghettikart_install_id }}" "{{ dg_spaghettikart_install_dir }}/.dg-installed-ref"; then
+        exit 0
+      fi
+
+      rm -rf "{{ dg_spaghettikart_install_dir }}"
+      mkdir -p "{{ dg_spaghettikart_install_dir }}"
+      unzip -q "{{ dg_spaghettikart_cache_dir }}/{{ dg_spaghettikart_asset_name }}" -d "{{ dg_spaghettikart_install_dir }}"
+      chmod 0755 "{{ dg_spaghettikart_install_dir }}/spaghetti.appimage"
+      cp -a "{{ dg_spaghettikart_build_dir }}/mk64.o2r" "{{ dg_spaghettikart_install_dir }}/mk64.o2r"
+      printf "%s\n" "{{ dg_spaghettikart_install_id }}" > "{{ dg_spaghettikart_install_dir }}/.dg-installed-ref"
+      printf "%s\n" "installed-spaghettikart {{ dg_spaghettikart_install_dir }}"
+    '
+  register: _spaghettikart_install
+  changed_when: "'installed-spaghettikart' in _spaghettikart_install.stdout"
+
+- name: Install MK64 Reloaded HD pack for SpaghettiKart
+  ansible.builtin.shell: |
+    {{ dg_in_box }} sh -lc '
+      set -eu
+      mods_dir="{{ dg_spaghettikart_install_dir }}/mods"
+      ref_file="$mods_dir/.dg-mk64-reloaded-ref"
+      if [ -s "$mods_dir/{{ dg_spaghettikart_hd_pack_name }}" ] &&
+         [ -f "$ref_file" ] &&
+         grep -qx "{{ dg_spaghettikart_hd_pack_id }}" "$ref_file"; then
+        exit 0
+      fi
+
+      mkdir -p "$mods_dir"
+      install -m 0644 "{{ dg_spaghettikart_cache_dir }}/{{ dg_spaghettikart_hd_pack_name }}" "$mods_dir/{{ dg_spaghettikart_hd_pack_name }}"
+      printf "%s\n" "{{ dg_spaghettikart_hd_pack_id }}" > "$ref_file"
+      printf "%s\n" "installed-mk64-reloaded {{ dg_spaghettikart_hd_pack_name }}"
+    '
+  register: _spaghettikart_hd_pack
+  changed_when: "'installed-mk64-reloaded' in _spaghettikart_hd_pack.stdout"
+
+- name: Install SpaghettiKart launcher wrapper
+  ansible.builtin.template:
+    src: spaghettikart.sh.j2
+    dest: "{{ dg_spaghettikart_bin }}"
+    mode: "0755"

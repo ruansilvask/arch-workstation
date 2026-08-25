@@ -1,0 +1,20 @@
+---
+- name: Install AMD gaming host stack
+  community.general.pacman:
+    name:
+      - mesa
+      - lib32-mesa
+      - vulkan-radeon
+      - lib32-vulkan-radeon
+      - vulkan-tools
+      - gamescope
+      - mangohud
+      - lib32-mangohud
+      - gamemode
+      - lib32-gamemode
+      - protontricks
+      - steam
+      - distrobox
+      - podman
+    state: present
+    update_cache: true

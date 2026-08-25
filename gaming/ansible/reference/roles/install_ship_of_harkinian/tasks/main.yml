@@ -1,0 +1,93 @@
+---
+- name: Create Ship of Harkinian directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ dg_ship_of_harkinian_root }}"
+    - "{{ dg_ship_of_harkinian_cache_dir }}"
+    - "{{ dg_ship_of_harkinian_install_dir }}"
+    - "{{ dg_ship_of_harkinian_install_dir }}/mods"
+    - "{{ dg_box_home }}/bin"
+
+- name: Install Ship of Harkinian runtime dependencies inside box
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} sudo pacman -S --needed --noconfirm
+    {{ dg_ship_of_harkinian_pacman_packages | join(' ') }}
+  register: _ship_of_harkinian_pacman
+  changed_when: "'installing' in _ship_of_harkinian_pacman.stdout or 'upgrading' in _ship_of_harkinian_pacman.stdout"
+
+- name: Download pinned Ship of Harkinian release ZIP
+  ansible.builtin.get_url:
+    url: "{{ dg_ship_of_harkinian_asset_url }}"
+    dest: "{{ dg_ship_of_harkinian_cache_dir }}/{{ dg_ship_of_harkinian_asset_name }}"
+    checksum: "sha256:{{ dg_ship_of_harkinian_asset_sha256 }}"
+    mode: "0644"
+
+- name: Download OoT Reloaded HD pack for Ship of Harkinian
+  ansible.builtin.get_url:
+    url: "{{ dg_ship_of_harkinian_hd_pack_url }}"
+    dest: "{{ dg_ship_of_harkinian_cache_dir }}/{{ dg_ship_of_harkinian_hd_pack_name }}"
+    checksum: "sha256:{{ dg_ship_of_harkinian_hd_pack_sha256 }}"
+    mode: "0644"
+
+- name: Install Ship of Harkinian AppImage release
+  ansible.builtin.shell: |
+    {{ dg_in_box }} sh -lc '
+      set -eu
+      if [ -x "{{ dg_ship_of_harkinian_install_dir }}/soh.appimage" ] &&
+         [ -f "{{ dg_ship_of_harkinian_install_dir }}/.dg-installed-ref" ] &&
+         grep -qx "{{ dg_ship_of_harkinian_install_id }}" "{{ dg_ship_of_harkinian_install_dir }}/.dg-installed-ref"; then
+        exit 0
+      fi
+
+      rm -rf "{{ dg_ship_of_harkinian_install_dir }}"
+      mkdir -p "{{ dg_ship_of_harkinian_install_dir }}"
+      unzip -q "{{ dg_ship_of_harkinian_cache_dir }}/{{ dg_ship_of_harkinian_asset_name }}" -d "{{ dg_ship_of_harkinian_install_dir }}"
+      chmod 0755 "{{ dg_ship_of_harkinian_install_dir }}/soh.appimage"
+      printf "%s\n" "{{ dg_ship_of_harkinian_install_id }}" > "{{ dg_ship_of_harkinian_install_dir }}/.dg-installed-ref"
+      printf "%s\n" "installed-ship-of-harkinian {{ dg_ship_of_harkinian_install_dir }}"
+    '
+  register: _ship_of_harkinian_install
+  changed_when: "'installed-ship-of-harkinian' in _ship_of_harkinian_install.stdout"
+
+- name: Prepare verified Ocarina of Time USA Rev B ROM for Ship of Harkinian
+  ansible.builtin.include_role:
+    name: n64_rom_prepare
+  vars:
+    n64_rom_label: Ocarina of Time USA Rev B
+    n64_rom_src: "{{ dg_ship_of_harkinian_rom_source }}"
+    n64_rom_dst: "{{ dg_ship_of_harkinian_install_dir }}/{{ dg_ship_of_harkinian_rom_name }}"
+    n64_rom_sha1: "{{ dg_ship_of_harkinian_rom_sha1 }}"
+    n64_rom_ref: "{{ dg_ship_of_harkinian_install_dir }}/.dg-rom-ref"
+
+- name: Install OoT Reloaded HD pack for Ship of Harkinian
+  ansible.builtin.shell: |
+    {{ dg_in_box }} sh -lc '
+      set -eu
+      mods_dir="{{ dg_ship_of_harkinian_install_dir }}/mods"
+      ref_file="$mods_dir/.dg-oot-reloaded-ref"
+      if [ -s "$mods_dir/{{ dg_ship_of_harkinian_hd_pack_o2r_name }}" ] &&
+         [ -f "$ref_file" ] &&
+         grep -qx "{{ dg_ship_of_harkinian_hd_pack_id }}" "$ref_file"; then
+        exit 0
+      fi
+
+      tmp_dir="{{ dg_ship_of_harkinian_cache_dir }}/oot-reloaded-extract"
+      rm -rf "$tmp_dir"
+      mkdir -p "$tmp_dir" "$mods_dir"
+      7z x -y -o"$tmp_dir" "{{ dg_ship_of_harkinian_cache_dir }}/{{ dg_ship_of_harkinian_hd_pack_name }}" >/dev/null
+      install -m 0644 "$tmp_dir/{{ dg_ship_of_harkinian_hd_pack_o2r_name }}" "$mods_dir/{{ dg_ship_of_harkinian_hd_pack_o2r_name }}"
+      printf "%s\n" "{{ dg_ship_of_harkinian_hd_pack_id }}" > "$ref_file"
+      rm -rf "$tmp_dir"
+      printf "%s\n" "installed-oot-reloaded {{ dg_ship_of_harkinian_hd_pack_o2r_name }}"
+    '
+  register: _ship_of_harkinian_hd_pack
+  changed_when: "'installed-oot-reloaded' in _ship_of_harkinian_hd_pack.stdout"
+
+- name: Install Ship of Harkinian launcher wrapper
+  ansible.builtin.template:
+    src: ship-of-harkinian.sh.j2
+    dest: "{{ dg_ship_of_harkinian_bin }}"
+    mode: "0755"

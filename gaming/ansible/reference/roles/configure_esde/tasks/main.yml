@@ -1,0 +1,17 @@
+---
+- name: Create ES-DE custom systems directory
+  ansible.builtin.file:
+    path: "{{ dg_box_home }}/ES-DE/custom_systems"
+    state: directory
+    mode: "0755"
+
+- name: Deploy ES-DE custom systems XML
+  ansible.builtin.template:
+    src: es_systems.xml.j2
+    dest: "{{ dg_box_home }}/ES-DE/custom_systems/es_systems.xml"
+    backup: true
+    mode: "0644"
+
+- ansible.builtin.include_tasks: media-symlinks.yml
+- ansible.builtin.include_tasks: ps4-gamelist.yml
+- ansible.builtin.include_tasks: arcade-gamelists.yml

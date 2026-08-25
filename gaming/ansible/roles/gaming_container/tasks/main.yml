@@ -1,0 +1,47 @@
+---
+- name: Check Distrobox
+  ansible.builtin.command: distrobox --version
+  changed_when: false
+
+- name: Check Podman
+  ansible.builtin.command: podman --version
+  changed_when: false
+
+- name: Check for gaming container
+  ansible.builtin.shell: |
+    distrobox list | awk 'NR > 1 {print $2}' | grep -qx gaming
+  args:
+    executable: /bin/bash
+  register: gaming_box
+  changed_when: false
+  failed_when: false
+
+- name: Create gaming container
+  ansible.builtin.command:
+    argv:
+      - distrobox
+      - create
+      - --name
+      - gaming
+      - --image
+      - archlinux:latest
+      - --yes
+  when: gaming_box.rc != 0
+
+- name: Install container gaming stack
+  ansible.builtin.command:
+    argv:
+      - distrobox
+      - enter
+      - gaming
+      - --
+      - bash
+      - -lc
+      - >
+        pacman -Sy --noconfirm &&
+        pacman -S --needed --noconfirm
+        steam gamescope mangohud lib32-mangohud
+        gamemode lib32-gamemode protontricks
+        vulkan-tools mesa lib32-mesa
+        vulkan-radeon lib32-vulkan-radeon
+        wine winetricks git curl jq

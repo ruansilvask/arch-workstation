@@ -1,5 +1,0 @@
----
-# container: implementation must remain idempotent.
-- name: Reconcile container
-  ansible.builtin.debug:
-    msg: "Reconcile container for profile { gaming_profile }"

@@ -1,0 +1,26 @@
+#!/usr/bin/env sh
+set -eu
+
+# Host-side wrapper for {{ item.name }}.
+#
+# Runs on the host (not inside the gaming distrobox) so that compositor /
+# Hyprland / monitor-config tweaks can be applied around the gameplay
+# session. The actual game launcher inside the box is at
+# {{ dg_box_home }}/bin/{{ item.slug }}.
+
+cleanup() {
+{% for cmd in item.host_post_launch_commands | default([]) %}
+  {{ cmd }} 2>/dev/null || true
+{% endfor %}
+}
+trap cleanup EXIT INT TERM HUP
+
+{% for cmd in item.host_pre_launch_commands | default([]) %}
+{{ cmd }}
+{% endfor %}
+
+# NOT exec: the game must run as a child so the cleanup trap fires when
+# it exits (exec replaced the shell and silently skipped host_post
+# commands — e.g. CMR2's hyprctl reload and CMR1's rootful-Xwayland
+# teardown never ran).
+/usr/bin/distrobox-enter -n {{ dg_box_name }} -- {{ dg_box_home }}/bin/{{ item.slug }} "$@"

@@ -1,4 +1,1 @@
-# Only add a Proton version or launch option here after it is actually tested.
-# Keep this file conservative. "auto" means use the compatibility policy.
-
 game_overrides: []

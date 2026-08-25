@@ -1,0 +1,319 @@
+# PCSX2 texture replacements and per-game patches.
+#
+# Each entry under dg_pcsx2_texture_packs deploys to
+#   $DG_BOX_HOME/.config/PCSX2/textures/<serial>/replacements/<link_as>/
+# by symlinking from the source path. Symlinking keeps the 8 GB+ texture
+# packs on the NAS instead of duplicating to local disk; PCSX2 caches
+# textures in RAM after first use, so the NFS hit only happens once.
+#
+# .pnach patch files symlink into ~/.config/PCSX2/patches/<basename>.
+
+dg_pcsx2_ps2_root: "{{ dg_external_games_root }}/ps2"
+dg_pcsx2_textures_root: "{{ dg_box_home }}/.config/PCSX2/textures"
+dg_pcsx2_patches_dir: "{{ dg_box_home }}/.config/PCSX2/patches"
+dg_pcsx2_cheats_dir: "{{ dg_box_home }}/.config/PCSX2/cheats"
+
+# Per-CRC pnach files that go into ~/.config/PCSX2/cheats/. These are
+# "user cheats" that PCSX2 only applies when "Enable Cheats" is on per
+# game (Game Properties → Patches → Enable Cheats). Symlinking the
+# whole NAS cheats dir.
+dg_pcsx2_cheats_source: "{{ dg_pcsx2_ps2_root }}/cheats"
+
+# Standalone .pnach patch files in the NAS that should symlink into
+# ~/.config/PCSX2/patches/ (auto-applied when CRC matches loaded ROM).
+# Skip files that duplicate dg_pcsx2_patch_urls (e.g. Silent's triggers
+# patch is fetched fresh from his GitHub above; the NAS copy is identical).
+dg_pcsx2_extra_patches: []
+
+dg_pcsx2_texture_packs:
+  - serial: SCUS-97328              # Gran Turismo 4 (NTSC-U / USA retail, CRC 77E61C8A)
+    name: "Gran Turismo 4"
+    sources:
+      - path: "{{ dg_pcsx2_ps2_root }}/Gran Turismo 4 Remaster/Gran Turismo 4 HD HUD & UI Texture pack by Silentwarior112/replacements"
+        link_as: hd-hud-ui
+      - path: "{{ dg_pcsx2_ps2_root }}/Gran Turismo 4 Remaster/update 2.1/replacements"
+        link_as: hd-hud-ui-update-2.1
+      - path: "{{ dg_pcsx2_ps2_root }}/Gran Turismo 4 Remaster/HD HUD & U.I. blocky haze fix v2/text files jap kor usa pal shared"
+        link_as: blocky-haze-fix
+    patches:
+      - "{{ dg_pcsx2_ps2_root }}/Gran Turismo 4 Remaster/06AD9CA0.pnach"
+      - "{{ dg_pcsx2_ps2_root }}/Gran Turismo 4 Remaster/44A61C8F.pnach"
+
+  - serial: SCUS-97436              # Gran Turismo 4 Spec II (community patched, CRC 4CE521F2)
+    name: "Gran Turismo 4 Spec II"
+    # Spec II changes the ELF but keeps per-texture hashes unchanged for
+    # HUD/UI/tracks/cars — the HD HUD pack and retexture pack built for
+    # vanilla USA (SCUS-97328) apply cleanly under Spec II. PCSX2 loads
+    # replacements by serial + per-texture hash, so we link the same
+    # NAS pack dirs under the Spec II serial.
+    sources:
+      - path: "{{ dg_pcsx2_ps2_root }}/Gran Turismo 4 Remaster/Gran Turismo 4 HD HUD & UI Texture pack by Silentwarior112/replacements"
+        link_as: hd-hud-ui
+      - path: "{{ dg_pcsx2_ps2_root }}/Gran Turismo 4 Remaster/update 2.1/replacements"
+        link_as: hd-hud-ui-update-2.1
+      - path: "{{ dg_pcsx2_ps2_root }}/Gran Turismo 4 Remaster/HD HUD & U.I. blocky haze fix v2/text files jap kor usa pal shared"
+        link_as: blocky-haze-fix
+    patches: []
+
+  - serial: SCUS-97102              # GT3 A-spec — USA retail, CRC 85AE91B3
+    name: "Gran Turismo 3 A-spec"
+    sources:
+      - path: "{{ dg_pcsx2_ps2_root }}/GT3 Retexture 1.0/replacements"
+        link_as: retexture-1.0
+    patches: []
+
+  - serial: PBPX-95503              # GT3 A-spec PS2 Bundle (v1.10, CRC 8AA991B0).
+                                    # The disc was reissued in the PS2 Bundle kit under this
+                                    # serial + CRC even in USA markets — many "(USA) (v1.10)"
+                                    # rips on the internet are actually this bundle variant, so
+                                    # PCSX2 reports PBPX-95503 at runtime. Same per-texture
+                                    # hashes as retail so the retexture pack works here too.
+    name: "Gran Turismo 3 A-spec (PS2 Bundle)"
+    sources:
+      - path: "{{ dg_pcsx2_ps2_root }}/GT3 Retexture 1.0/replacements"
+        link_as: retexture-1.0
+    patches: []
+
+  - serial: SLUS-20967              # Enthusia Professional Racing (NTSC-U)
+    name: "Enthusia Professional Racing"
+    sources:
+      - path: "{{ dg_pcsx2_ps2_root }}/Enthusia/SLUS-20967/replacements"
+        link_as: hd-textures
+    patches: []
+
+# Per-game .pnach patches fetched from public sources at deploy time.
+# Each entry is downloaded with ansible.builtin.get_url and written to
+#   ~/.config/PCSX2/patches/<basename>
+# PCSX2 only loads .pnach files whose CRC in the filename matches the
+# loaded ROM's CRC, so dropping in patches for other regions is harmless.
+dg_pcsx2_patch_urls:
+  # Silent's GT4 USA patches (https://silentsblog.com/mods/gran-turismo-4/)
+  # SCUS-97328 / CRC 77E61C8A — adjusted triggers, GT3-style cam, far chase cam.
+  # No deinterlace patch needed: USA retail GT4 has progressive scan natively.
+  # NOTE: these apply to VANILLA GT4 only. Spec II has GT3 cam + adjusted
+  # triggers built in and a different CRC, so these are no-ops under Spec II.
+  - https://raw.githubusercontent.com/CookiePLMonster/Console-Cheat-Codes/master/PS2/Gran%20Turismo%204/Adjusted%20triggers%20sensitivity/SCUS-97328_77E61C8A_triggers.pnach
+  - https://raw.githubusercontent.com/CookiePLMonster/Console-Cheat-Codes/master/PS2/Gran%20Turismo%204/GT3%20style%20camera/SCUS-97328_77E61C8A_gt3cam.pnach
+  - https://raw.githubusercontent.com/CookiePLMonster/Console-Cheat-Codes/master/PS2/Gran%20Turismo%204/Far%20chase%20camera/SCUS-97328_77E61C8A_farchasecam.pnach
+
+  # Enthusia Professional Racing widescreen + no-interlacing (No.47)
+  # SLUS-20967 / CRC 81D233DC
+  - https://raw.githubusercontent.com/PCSX2/pcsx2_patches/main/patches/SLUS-20967_81D233DC.pnach
+
+  # Ridge Racer V widescreen + no-interlacing (No.47)
+  # SLUS-20002 / CRC 06AD9CA0 — USA retail launch title
+  - https://raw.githubusercontent.com/PCSX2/pcsx2_patches/main/patches/SLUS-20002_06AD9CA0.pnach
+
+# Append repo-local pnach block onto a deployed pnach. Use when upstream
+# has only widescreen/UI fixes but we want to ship rebalance cheats on
+# top (e.g. retail GT4 money cheats ported to Spec II's CRC). Each entry
+# is idempotent — re-running leaves one copy of the appended block.
+dg_pcsx2_patch_appends:
+  # GT4 Spec II: retail vanilla pnach's Max Cash variants ported as an
+  # experiment. Spec II kept Polyphony's runtime data layout (most of
+  # the Gameshark code blocks target a data address, not code), so the
+  # cheats MIGHT apply cleanly. Leave off by default — user enables via
+  # PCSX2 Game Properties → Patches → Enable Cheats per-game. Test each
+  # "Max Cash" variant one at a time; only one will typically be right.
+  - target_pnach: SCUS-97436_4CE521F2.pnach
+    local_file:   SCUS-97436_4CE521F2-gt4specii-cheats.pnach
+
+# URL + explicit dest filename. Use when the upstream pnach targets a CRC
+# that differs from ours (same base game, different build) and we need to
+# save it under our CRC so PCSX2 picks it up.
+dg_pcsx2_patch_url_renames:
+  # GT4 Spec II widescreen — upstream pnach is for CRC 32A1C752 (GT4
+  # Online Public Beta, the ISO Spec II is built on). The widescreen
+  # instructions are identical for Spec II since the ELF layout is
+  # preserved; only the CRC changed to 4CE521F2, so rename.
+  - url: https://raw.githubusercontent.com/PCSX2/pcsx2_patches/main/patches/SCUS-97436_32A1C752.pnach
+    dest_name: SCUS-97436_4CE521F2.pnach
+
+  # GT3 A-spec widescreen — two variants of the retail v1.10 disc exist:
+  #   SCUS-97102 / CRC 85AE91B3 — USA retail
+  #   PBPX-95503 / CRC 8AA991B0 — PS2 Bundle variant, same CRC as
+  #                               SCES-50294 (EU) v1.10; many "(USA) (v1.10)"
+  #                               rips report as PBPX-95503 at runtime
+  # PCSX2 upstream DB has the SCUS pnach with widescreen, and the
+  # PBPX/SCES pnach with only no-interlace/triggers/metric (no widescreen).
+  # Fetch AeroWidescreen's PBPX-95503 widescreen pnach to fill the gap.
+  - url: https://raw.githubusercontent.com/PCSX2/pcsx2_patches/main/patches/SCUS-97102_85AE91B3.pnach
+    dest_name: SCUS-97102_85AE91B3.pnach
+  - url: https://raw.githubusercontent.com/AeroWidescreen/PCSX2-Cheats/main/Gran%20Turismo%203/PBPX-95503/Widescreen%20Text/PBPX-95503_8AA991B0_widescreen.pnach
+    dest_name: PBPX-95503_8AA991B0.pnach
+
+# Per-game graphics/system settings written to
+#   ~/.config/PCSX2/gamesettings/<SERIAL>_<CRC>.ini
+# PCSX2 ≥ 2.7 reads ONLY the CRC-suffixed form; files named just
+# <SERIAL>.ini are silently ignored ("using globals" in Game Properties).
+# Specify the CRC per entry — print it via PCSX2 log on first boot:
+# "CRC: <8 hex chars>".
+dg_pcsx2_per_game_settings:
+  - serial: SCUS-97328
+    crc: 77E61C8A
+    name: "Gran Turismo 4"
+    settings:
+      - { section: "EmuCore/GS", option: "AspectRatio", value: "16:9" }
+      - { section: "EmuCore/GS", option: "AccurateBlendingUnit", value: "Basic" }
+      - { section: "EmuCore/GS", option: "MaxAnisotropy", value: "16" }
+      - { section: "EmuCore/GS", option: "TextureFiltering", value: "2" }
+      - { section: "EmuCore/GS", option: "LoadTextureReplacements", value: "true" }
+      - { section: "EmuCore/GS", option: "PrecacheTextureReplacements", value: "false" }
+      - { section: "EmuCore/GS", option: "TextureReplacementsAsync", value: "true" }
+      - { section: "EmuCore", option: "EnableWideScreenPatches", value: "true" }
+
+  - serial: SCUS-97436              # GT4 Spec II
+    crc: 4CE521F2
+    name: "Gran Turismo 4 Spec II"
+    settings:
+      - { section: "EmuCore/GS", option: "AspectRatio", value: "16:9" }
+      - { section: "EmuCore/GS", option: "AccurateBlendingUnit", value: "Basic" }
+      - { section: "EmuCore/GS", option: "MaxAnisotropy", value: "16" }
+      - { section: "EmuCore/GS", option: "TextureFiltering", value: "2" }
+      - { section: "EmuCore/GS", option: "LoadTextureReplacements", value: "true" }
+      - { section: "EmuCore/GS", option: "PrecacheTextureReplacements", value: "false" }
+      - { section: "EmuCore/GS", option: "TextureReplacementsAsync", value: "true" }
+      # Spec II's baked-in 480p + the "Autoboot in 480p" No-Interlacing
+      # pnach confuse PCSX2's interlaced/progressive auto-detection —
+      # subtle in-game flicker + ghosted double image on pause.
+      # deinterlace_mode 8 (Adaptive TFF) is the smart filter; works
+      # cleanly regardless of whether the current frame is interlaced.
+      - { section: "EmuCore/GS", option: "deinterlace_mode", value: "8" }
+      # GT4's color grading is flatter than GT3's — Polyphony targeted
+      # 480p LCD projectors for GT4. ShadeBoost pushes saturation +10
+      # and contrast +2 for a GT3-like punch without going cartoonish;
+      # brightness +3 lifts the shadow detail slightly. Defaults 50/50/50.
+      - { section: "EmuCore/GS", option: "ShadeBoost",              value: "true" }
+      - { section: "EmuCore/GS", option: "ShadeBoost_Saturation",   value: "60" }
+      - { section: "EmuCore/GS", option: "ShadeBoost_Brightness",   value: "53" }
+      - { section: "EmuCore/GS", option: "ShadeBoost_Contrast",     value: "52" }
+      # Spec II has a distinct CRC (4CE521F2) so PCSX2's bundled widescreen
+      # DB misses it. We ship the Online-Public-Beta widescreen pnach
+      # (CRC 32A1C752, same code layout) renamed to Spec II's CRC via
+      # dg_pcsx2_patch_url_renames below — keep this true so PCSX2 loads it.
+      - { section: "EmuCore", option: "EnableWideScreenPatches", value: "true" }
+
+  - serial: SCUS-97102              # GT3 A-spec — USA retail
+    crc: 85AE91B3
+    name: "Gran Turismo 3 A-spec"
+    settings: &gt3_settings
+      - { section: "EmuCore/GS", option: "AspectRatio", value: "16:9" }
+      - { section: "EmuCore/GS", option: "AccurateBlendingUnit", value: "Basic" }
+      - { section: "EmuCore/GS", option: "MaxAnisotropy", value: "16" }
+      - { section: "EmuCore/GS", option: "TextureFiltering", value: "2" }
+      # GT3 retexture pack lives on the NAS as 14,846 .dds files (~4.7 GB).
+      # PCSX2 loads them via the symlink at
+      # textures/SCUS-97102/replacements/retexture-1.0/. .dds is
+      # GPU-native (no CPU decompression in the hot path) so the past
+      # flicker concern from the PNG-based pack version no longer
+      # applies. Async stays off because PCSX2's async pipeline has
+      # been observed to drop frames on slower I/O paths.
+      - { section: "EmuCore/GS", option: "LoadTextureReplacements", value: "true" }
+      - { section: "EmuCore/GS", option: "PrecacheTextureReplacements", value: "false" }
+      - { section: "EmuCore/GS", option: "TextureReplacementsAsync", value: "false" }
+      - { section: "EmuCore", option: "EnableWideScreenPatches", value: "true" }
+
+  - serial: PBPX-95503              # GT3 A-spec PS2 Bundle variant — same settings
+    crc: 8AA991B0
+    name: "Gran Turismo 3 A-spec (PS2 Bundle)"
+    settings: *gt3_settings
+
+  - serial: SLUS-20967              # Enthusia Professional Racing — USA retail
+    crc: 81D233DC                   # Verified via PCSX2 pnach filename
+    name: "Enthusia Professional Racing"
+    settings:
+      - { section: "EmuCore/GS", option: "AspectRatio", value: "16:9" }
+      - { section: "EmuCore/GS", option: "MaxAnisotropy", value: "16" }
+      - { section: "EmuCore/GS", option: "TextureFiltering", value: "2" }
+      - { section: "EmuCore/GS", option: "LoadTextureReplacements", value: "true" }
+      - { section: "EmuCore/GS", option: "PrecacheTextureReplacements", value: "false" }
+      - { section: "EmuCore/GS", option: "TextureReplacementsAsync", value: "true" }
+      - { section: "EmuCore", option: "EnableWideScreenPatches", value: "true" }
+
+  - serial: SLES-51824              # Colin McRae Rally 04 — PAL, En,Fr,De,Es,It
+    crc: DCC25DBE                   # RUNTIME CRC from PCSX2 emulog ("Game CRC =").
+                                    # NOT plain crc32 of the ELF file (that gives
+                                    # DAF18A40, which PCSX2 never matches — the ini
+                                    # was silently ignored for months).
+    name: "Colin McRae Rally 04"
+    # Known HW-renderer bug: ground and sky render black without the CRC
+    # hack. The combo CRC Hack = Partial + Blending Accuracy = High +
+    # Skipdraw = 3 is the community-documented workaround (PCSX2 issues
+    # #1546, #13136). No upstream pnach exists for this serial; the
+    # PCSX2/pcsx2_patches repo has nothing for CMR04/CMR05 PAL.
+    settings:
+      - { section: "EmuCore/GS", option: "AspectRatio", value: "16:9" }
+      - { section: "EmuCore/GS", option: "MaxAnisotropy", value: "16" }
+      - { section: "EmuCore/GS", option: "TextureFiltering", value: "2" }
+      - { section: "EmuCore/GS", option: "AccurateBlendingUnit", value: "High" }
+      - { section: "EmuCore/GS", option: "UserHacks", value: "true" }
+      - { section: "EmuCore/GS", option: "UserHacks_SkipDraw_Start", value: "1" }
+      - { section: "EmuCore/GS", option: "UserHacks_SkipDraw_End", value: "3" }
+      # Upstream GameIndex gsHWFixes for this serial (ignored while
+      # UserHacks=true, so replicated here): halfPixelOffset 4 = Align
+      # to Native ("Fixes vertical lines and depth lines"), autoFlush 2
+      # ("Fixes sun intensity").
+      - { section: "EmuCore/GS", option: "UserHacks_HalfPixelOffset", value: "4" }
+      - { section: "EmuCore/GS", option: "UserHacks_AutoFlush", value: "2" }
+      # Neutralize global 2D-oriented sprite hacks for this 3D game —
+      # forced RoundSprite/AlignSprite/MergeSprite are known causes of
+      # vertical-line striping, and upstream's GameIndex fix (HPO=4)
+      # assumes they are at defaults (off).
+      - { section: "EmuCore/GS", option: "UserHacks_RoundSprite", value: "0" }
+      - { section: "EmuCore/GS", option: "UserHacks_AlignSpriteX", value: "false" }
+      - { section: "EmuCore/GS", option: "UserHacks_MergePPSprite", value: "false" }
+
+  - serial: SLES-52636              # Colin McRae Rally 2005 — PAL, En,Fr,De,Es,It
+    crc: 05C3F8E1                   # RUNTIME CRC from PCSX2 emulog ("Game CRC =").
+                                    # NOT plain crc32 of the ELF file (5D4A4D86) —
+                                    # see CMR 04 note above; verify any new entry
+                                    # against emulog, not a computed hash.
+    name: "Colin McRae Rally 2005"
+    # Same black-ground/sky HW bug as CMR 04 (#1546). No pnach exists;
+    # the game's built-in 16:9 option breaks the cockpit camera, so we
+    # leave AspectRatio at 16:9 in PCSX2 instead of toggling in-game.
+    # Issue #8877 tracks in-race graphical breakage in clear weather +
+    # framerate/timer problems — no emulator-side fix available.
+    settings:
+      - { section: "EmuCore/GS", option: "AspectRatio", value: "16:9" }
+      - { section: "EmuCore/GS", option: "MaxAnisotropy", value: "16" }
+      - { section: "EmuCore/GS", option: "TextureFiltering", value: "2" }
+      - { section: "EmuCore/GS", option: "AccurateBlendingUnit", value: "High" }
+      - { section: "EmuCore/GS", option: "UserHacks", value: "true" }
+      - { section: "EmuCore/GS", option: "UserHacks_CPUCLUTRender", value: "1" }
+      - { section: "EmuCore/GS", option: "UserHacks_SkipDraw_Start", value: "1" }
+      - { section: "EmuCore/GS", option: "UserHacks_SkipDraw_End", value: "3" }
+      # Upstream GameIndex gsHWFixes for this serial (ignored while
+      # UserHacks=true, so replicated here): halfPixelOffset 4 = Align
+      # to Native ("Fixes lines in game and FMVs") — the ~4 evenly
+      # spaced white vertical lines seen when upscaling.
+      - { section: "EmuCore/GS", option: "UserHacks_HalfPixelOffset", value: "4" }
+      # Neutralize global 2D-oriented sprite hacks for this 3D game —
+      # forced RoundSprite/AlignSprite/MergeSprite are known causes of
+      # vertical-line striping, and upstream's GameIndex fix (HPO=4)
+      # assumes they are at defaults (off).
+      - { section: "EmuCore/GS", option: "UserHacks_RoundSprite", value: "0" }
+      - { section: "EmuCore/GS", option: "UserHacks_AlignSpriteX", value: "false" }
+      - { section: "EmuCore/GS", option: "UserHacks_MergePPSprite", value: "false" }
+      # GameIndex for this serial doesn't request AutoFlush; global
+      # forces 1 — return to upstream default.
+      - { section: "EmuCore/GS", option: "UserHacks_AutoFlush", value: "0" }
+
+  - serial: SLUS-20002              # Ridge Racer V — PS2 launch title, USA retail
+    crc: 06AD9CA0
+    name: "Ridge Racer V"
+    # Known quirks:
+    # - Car-texture flickering in HW renderer (PCSX2 issue #3639, #13729
+    #   still open on master as of Apr 2026). Digital Foundry's John
+    #   Linneman (Jul 2024): "finally pretty good using the HW renderer in
+    #   PCSX2 2.0. Still some texture glitching" — default HW is acceptable
+    #   for racing; if flicker is distracting, toggle Software renderer
+    #   in-session (no per-game setting required).
+    # - Vertical flicker at 1080i output: fixed by enabling the pnach's
+    #   [No-Interlacing] block via EnableNoInterlacingPatches = true.
+    settings:
+      - { section: "EmuCore/GS", option: "AspectRatio", value: "16:9" }
+      - { section: "EmuCore/GS", option: "MaxAnisotropy", value: "16" }
+      - { section: "EmuCore/GS", option: "TextureFiltering", value: "2" }
+      - { section: "EmuCore", option: "EnableWideScreenPatches", value: "true" }
+      - { section: "EmuCore", option: "EnableNoInterlacingPatches", value: "true" }

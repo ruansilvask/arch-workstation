@@ -1,17 +1,8 @@
 ---
-- name: Validate gaming host
+- name: Prepare gaming host
   hosts: localhost
   connection: local
+  become: true
   gather_facts: true
-  tasks:
-    - name: Assert AMD GPU exists
-      ansible.builtin.shell: "lspci | grep -Ei 'VGA|3D|Display' | grep -Ei 'AMD|ATI|Advanced Micro Devices'"
-      changed_when: false
-
-    - name: Assert Vulkan loader exists
-      ansible.builtin.command: vulkaninfo --summary
-      changed_when: false
-
-    - name: Assert Distrobox exists
-      ansible.builtin.command: distrobox --version
-      changed_when: false
+  roles:
+    - gaming_host

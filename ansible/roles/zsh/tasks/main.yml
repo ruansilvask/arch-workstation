@@ -1,0 +1,25 @@
+---
+- name: Install Zsh stack
+  community.general.pacman:
+    name:
+      - zsh
+      - zsh-completions
+      - zsh-autosuggestions
+      - zsh-history-substring-search
+      - zsh-syntax-highlighting
+      - fzf
+      - starship
+      - thefuck
+      - nvm
+    state: present
+
+- name: Install Zsh configuration
+  ansible.builtin.copy:
+    src: zshrc
+    dest: "{{ ansible_env.HOME }}/.zshrc"
+    mode: "0644"
+
+- name: Set Zsh as login shell
+  ansible.builtin.user:
+    name: "{{ ansible_env.USER }}"
+    shell: /usr/bin/zsh

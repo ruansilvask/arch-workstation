@@ -1,0 +1,36 @@
+---
+- name: Verify UEFI
+  ansible.builtin.stat:
+    path: /sys/firmware/efi
+  register: efi
+
+- name: Fail when not booted in UEFI
+  ansible.builtin.fail:
+    msg: "This project expects an UEFI boot."
+  when: not efi.stat.exists
+
+- name: Verify Btrfs root
+  ansible.builtin.command: findmnt -n -t btrfs /
+  changed_when: false
+
+- name: Verify systemd-boot
+  ansible.builtin.command: bootctl is-installed
+  changed_when: false
+
+- name: Verify AMD GPU
+  ansible.builtin.shell: |
+    set -o pipefail
+    lspci | grep -Ei 'VGA|3D|Display' | grep -Ei 'AMD|ATI|Advanced Micro Devices'
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Install AMD graphics stack
+  ansible.builtin.package:
+    name:
+      - mesa
+      - lib32-mesa
+      - vulkan-radeon
+      - lib32-vulkan-radeon
+      - vulkan-tools
+    state: present

@@ -1,0 +1,65 @@
+---
+- name: Install workstation packages
+  community.general.pacman:
+    name:
+      - git
+      - curl
+      - wget
+      - jq
+      - rsync
+      - zip
+      - unzip
+      - 7zip
+      - openssh
+      - fzf
+      - ripgrep
+      - fd
+      - bat
+      - eza
+      - zoxide
+      - btop
+      - tmux
+      - ansible
+      - neovim
+      - python
+      - python-pip
+      - python-virtualenv
+      - nodejs
+      - npm
+      - nvm
+      - openjdk
+      - jdk-openjdk
+      - maven
+      - gradle
+      - docker
+      - docker-compose
+      - pipewire
+      - pipewire-pulse
+      - pipewire-alsa
+      - pipewire-jack
+      - wireplumber
+      - bluez
+      - bluez-utils
+      - distrobox
+      - podman
+      - steam
+      - gamescope
+      - mangohud
+      - lib32-mangohud
+      - gamemode
+      - lib32-gamemode
+      - protontricks
+    state: present
+    update_cache: true
+
+- name: Enable NetworkManager
+  ansible.builtin.systemd:
+    name: NetworkManager
+    enabled: true
+    state: started
+
+- name: Enable Bluetooth
+  ansible.builtin.systemd:
+    name: bluetooth
+    enabled: true
+    state: started

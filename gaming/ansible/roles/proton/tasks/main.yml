@@ -1,5 +1,0 @@
----
-# proton: implementation must remain idempotent.
-- name: Reconcile proton
-  ansible.builtin.debug:
-    msg: "Reconcile proton for profile { gaming_profile }"

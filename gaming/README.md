@@ -78,14 +78,3 @@ Rebuild the container:
 ./gaming/scripts/reset-container.sh
 ./gaming/scripts/install.sh
 ```
-
-
-## Installation profiles
-
-The default `bootstrap` profile installs only **ARK: Survival Evolved** (AppID 346110) so the Steam/Proton/Vulkan/BattlEye pipeline can be validated without downloading the complete library.
-
-The `full` profile is intentionally separate and can be expanded after bootstrap validation.
-
-## Idempotency
-
-The gaming subsystem is idempotent, incremental and non-destructive. Re-running it reconciles the existing state. Existing games are reused and `/mnt/jogos` is never formatted or deleted by the automation.

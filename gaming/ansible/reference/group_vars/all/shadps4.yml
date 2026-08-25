@@ -1,0 +1,35 @@
+# shadPS4 and QtLauncher release configuration.
+
+dg_shadps4_qtlauncher_root: "{{ dg_box_home }}/tools/shadps4-qtlauncher"
+dg_shadps4_qtlauncher_release: ""
+dg_shadps4_qtlauncher_releases_api: https://api.github.com/repos/shadps4-emu/shadps4-qtlauncher/releases
+dg_shadps4_qtlauncher_asset_name: shadPS4QtLauncher-qt.AppImage
+dg_shadps4_qtlauncher_bin: "{{ dg_box_home }}/bin/shadps4-qtlauncher-current"
+
+dg_shadps4_versions_root: "{{ dg_box_home }}/.local/share/shadPS4QtLauncher/versions"
+dg_shadps4_releases_api: https://api.github.com/repos/shadps4-emu/shadPS4/releases
+dg_shadps4_channel: Pre-release
+dg_shadps4_managed_bin: "{{ dg_shadps4_versions_root }}/{{ dg_shadps4_channel }}/Shadps4-sdl.AppImage"
+dg_shadps4_bin: "{{ dg_box_home }}/bin/shadps4-current"
+dg_shadps4_cmd_alias: "{{ dg_box_home }}/bin/shadps4"
+
+# Where shadPS4 installs DLC / addon PKGs. Must NOT be under
+# dg_ps4_rom_root or ES-DE's `.bin` scan would pick up addon files as
+# fake games. Keep it as a sibling dir on the same NAS tier.
+dg_shadps4_addon_install_dir: "{{ dg_emudeck_root }}/roms_rare/ps4-addons"
+
+# Per-game configs that seed_configs deploys to
+# ~/.local/share/shadPS4/custom_configs/<title_id>.json. Add a new game
+# by creating roles/seed_configs/templates/<title_id>.json.j2 and
+# appending it here.
+dg_shadps4_per_game_configs:
+  - title_id: CUSA00003
+    name: Driveclub
+  - title_id: CUSA03745
+    name: The Last Guardian
+  - title_id: CUSA03220
+    name: Gran Turismo Sport
+  - title_id: CUSA01113
+    name: Gravity Rush Remastered
+  - title_id: CUSA04943
+    name: Gravity Rush 2

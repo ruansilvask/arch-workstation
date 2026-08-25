@@ -1,0 +1,187 @@
+# Core paths, box identity, and UID/GID defaults.
+# Override in host_vars/localhost.yml or via -e on the command line.
+
+dg_box_name: gaming
+dg_image: "archlinux:latest"
+
+# NAS requires UID/GID 1026 for file access.
+dg_host_uid: 1026
+dg_host_gid: 1026
+
+dg_data_root: /mnt/data
+dg_box_root: "{{ dg_data_root }}/distrobox/gaming"
+dg_box_home: "{{ dg_box_root }}"
+dg_steam_root: "{{ dg_data_root }}/steam"
+
+# Root for user-owned ROMs, BIOS, extracted installers, and large assets.
+# Override this first when porting the playbooks to another machine.
+dg_external_games_root: /mnt/terachad/Emulators
+dg_roms_final_root: "{{ dg_external_games_root }}/ROMS_FINAL"
+dg_external_usb_games_root: ""
+
+dg_emudeck_root: "{{ dg_external_games_root }}/EmuDeck"
+dg_rom_root: "{{ dg_emudeck_root }}/roms"
+dg_rom_mid_root: "{{ dg_emudeck_root }}/roms_mid"
+dg_rom_heavy_root: "{{ dg_emudeck_root }}/roms_heavy"
+dg_rom_rare_root: "{{ dg_emudeck_root }}/roms_rare"
+dg_bios_root: "{{ dg_emudeck_root }}/Emulation/bios"
+
+# libretro-database cht files — user-supplied, typically cloned from
+# https://github.com/libretro/libretro-database. Override in
+# host_vars/localhost.yml if your clone is elsewhere (see
+# docs/setup-assets.md). DuckStation sources its per-game widescreen
+# cheat packs from here (see dg_duckstation_cheats in emulators.yml).
+# Missing source → cheat copy task warns and moves on.
+dg_libretro_cheats_dir: "{{ dg_external_games_root }}/index/dat/libretro-database/cht"
+
+dg_ps4_rom_root: "{{ dg_rom_rare_root }}/ps4"
+dg_ps4_firmware_modules: "{{ dg_rom_rare_root }}/ps4-firmware/11.00_sys_modules"
+dg_shadps4_title_id: CUSA00003
+dg_shadps4_game_dir: "{{ dg_ps4_rom_root }}/{{ dg_shadps4_title_id }}"
+dg_shadps4_game_boot: "{{ dg_shadps4_game_dir }}/eboot.bin"
+dg_shadps4_patch_name: Driveclub.xml
+dg_shadps4_patch_xml: "{{ dg_box_home }}/.local/share/shadPS4/patches/{{ dg_shadps4_patch_name }}"
+
+dg_dolphin_config_dir: "{{ dg_box_home }}/.config/dolphin-emu"
+
+dg_xemu_config_dir: "{{ dg_box_home }}/.config/xemu"
+dg_xemu_data_dir: "{{ dg_box_home }}/.local/share/xemu"
+# Internal-resolution upscale factor (xemu's "Int. Resolution Scale").
+# A pre-launch wrapper re-enforces this in xemu.toml before every run
+# because xemu doesn't reliably persist user changes to surface_scale
+# on shutdown — the toml ends up back at 1 even after picking 3x via
+# View → Int. Resolution Scale. 4 = 1920p internal from Xbox 480p
+# native (480 × 4 = 1920), sharper than 3x on a 4K panel with
+# acceptable load on the RTX 5090. Range 1-16; bump down to 2 or 3
+# if you see frametime drops, up to 6 for screenshot-grade sharpness.
+dg_xemu_surface_scale: 4
+# xemu writes its toml + eeprom + shaders to <data_dir>/xemu/. The
+# <config_dir>/xemu.toml is ignored by upstream xemu — only the data-dir
+# copy is read at startup and rewritten on shutdown.
+dg_xemu_runtime_dir: "{{ dg_xemu_data_dir }}/xemu"
+dg_xemu_config: "{{ dg_xemu_runtime_dir }}/xemu.toml"
+dg_xemu_eeprom: "{{ dg_xemu_runtime_dir }}/eeprom.bin"
+dg_xemu_bootrom_source: "{{ dg_bios_root }}/mcpx_1.0.bin"
+dg_xemu_flashrom_source: "{{ dg_bios_root }}/Complex_4627.bin"
+dg_xemu_hdd_source: "{{ dg_bios_root }}/xbox_hdd.qcow2"
+dg_xemu_bootrom: "{{ dg_xemu_config_dir }}/mcpx_1.0.bin"
+dg_xemu_flashrom: "{{ dg_xemu_config_dir }}/Complex_4627.bin"
+dg_xemu_hdd: "{{ dg_xemu_data_dir }}/xbox_hdd.qcow2"
+
+dg_desktop_render_dir: "{{ dg_project_root }}/config/desktop/rendered"
+dg_host_applications_dir: "{{ ansible_facts.env.HOME }}/.local/share/applications"
+
+dg_project_root: "{{ playbook_dir | dirname }}"
+
+# Helper for running commands inside the distrobox.
+dg_in_box: "distrobox-enter -n {{ dg_box_name }} --"
+
+# Backup location for backup/restore playbooks.
+dg_backup_dir: "{{ dg_box_home }}/backups"
+
+# DLC / patch staging directories. Set to empty string to skip.
+dg_ps3_dlc_source: "{{ dg_rom_heavy_root }}/ps3-DLC"
+dg_switch_updates_source: "{{ dg_rom_heavy_root }}/switch_updates"
+dg_switch_cheats_source: "{{ dg_rom_heavy_root }}/switch_cheats"
+
+# RPCS3 paths
+dg_rpcs3_config_dir: "{{ dg_box_home }}/.config/rpcs3"
+dg_rpcs3_dev_hdd0_game: "{{ dg_rpcs3_config_dir }}/dev_hdd0/game"
+dg_rpcs3_custom_configs: "{{ dg_rpcs3_config_dir }}/custom_configs"
+
+# Eden / Switch paths
+dg_eden_data_dir: "{{ dg_box_home }}/.local/share/eden"
+dg_eden_load_dir: "{{ dg_eden_data_dir }}/load"
+dg_eden_nand_registered: "{{ dg_eden_data_dir }}/nand/user/Contents/registered"
+
+# ES-DE
+dg_esde_media_dir: "{{ dg_box_home }}/ES-DE/downloaded_media"
+
+# RetroArch
+dg_retroarch_dir: "{{ dg_box_home }}/.config/retroarch"
+dg_retroarch_cache_dir: "{{ dg_box_home }}/cache/retroarch-downloads"
+dg_retroarch_config: "{{ dg_retroarch_dir }}/retroarch.cfg"
+dg_retroarch_buildbot: https://buildbot.libretro.com
+# Key=value settings enforced in retroarch.cfg on every reset-configs run.
+# RetroArch's frame timer slaves to audio_sync; if its native pipewire
+# driver fails to bind a sink (Arch's default), audio is silently disabled
+# AND audio_sync becomes a no-op, so libretro cores free-run at uncapped
+# speed. Going through the pipewire-pulse compat layer ("pulse") is the
+# robust path — same pipewire server underneath, more battle-tested
+# client code. Verified 2026-06-13 on SNES (was no-audio + super-fast).
+dg_retroarch_settings:
+  - { key: audio_driver, value: '"pulse"' }
+  # Xbox-style menu navigation: south face button (Xbox A / Nintendo B)
+  # confirms, east face button cancels. Default is Nintendo-style
+  # (east = OK). This is the menu mapping only — in-game controls come
+  # from each libretro core's defaults plus per-core remaps.
+  - { key: menu_swap_ok_cancel_buttons, value: '"true"' }
+dg_retroarch_core_options:
+  # Vitor Vilela's Super Mario World Widescreen patch is not a Mode-7-only
+  # widescreen hack; it needs bsnes-hd's full-scene widescreen renderer. The
+  # ROM-specific .bso file still carries the exact per-game render string.
+  - path: "{{ dg_retroarch_dir }}/config/bsnes-hd beta/bsnes-hd beta.opt"
+    settings:
+      - { key: bsnes_mode7_wsMode, value: '"all"' }
+      - { key: bsnes_mode7_widescreen, value: '"16:9"' }
+      - { key: bsnes_mode7_wsobj, value: '"unsafe"' }
+      - { key: bsnes_video_aspectcorrection, value: '"ON"' }
+  # melonDS's hardware renderer is OpenGL-only; RetroArch's global
+  # vulkan video driver can't hand the core a GL context, so enabling
+  # the OpenGL renderer under vulkan shows a black game screen. The
+  # per-core .cfg override switches ONLY melonDS launches to glcore
+  # (RetroArch swaps video drivers at core load); everything else
+  # keeps the global vulkan driver.
+  - path: "{{ dg_retroarch_dir }}/config/melonDS/melonDS.cfg"
+    settings:
+      - { key: video_driver, value: '"glcore"' }
+  - path: "{{ dg_retroarch_dir }}/config/melonDS/melonDS.opt"
+    settings:
+      - { key: melonds_opengl_renderer, value: '"enabled"' }
+  # ParaLLEl-N64 runs the heavy SM64 romhacks that crash Mupen64Plus-Next
+  # (Last Impact, Star Road). Its default GLideN64 plugin is OpenGL, which
+  # black-screens under RetroArch's global Vulkan video driver (same trap as
+  # melonDS above). Use the ParaLLEl-RDP Vulkan renderer + LLE ParaLLEl-RSP
+  # (HLE RSP was the original crash/black-screen cause for these hacks).
+  - path: "{{ dg_retroarch_dir }}/config/ParaLLEl N64/ParaLLEl N64.opt"
+    settings:
+      - { key: parallel-n64-gfxplugin, value: '"parallel"' }
+      - { key: parallel-n64-rspplugin, value: '"parallel"' }
+dg_retroarch_cores:
+  - melonds
+  - bsnes
+  - bsnes_hd_beta
+  - fbneo
+  - stella
+  - prosystem
+  - handy
+  - gambatte
+  - mednafen_ngp
+  - bluemsx
+  - fmsx
+  - o2em
+  - opera
+  - mednafen_saturn
+  - mednafen_wswan
+  - mednafen_vb
+  - mednafen_supergrafx
+  - vecx
+  - neocd
+  # ParaLLEl-N64: the accuracy N64 core. Mupen64Plus-Next crashes some
+  # heavy Kaze romhacks (SM64: Last Impact quits right after its intro);
+  # ParaLLEl runs them. Selectable per-game in ES-DE (n64 alt emulator).
+  - parallel_n64
+  - fceumm
+  - puae
+  - hatari
+  - vice_x64
+  - atari800
+dg_retroarch_assets:
+  - { zip: info.zip,             dir: info }
+  - { zip: assets.zip,           dir: assets }
+  - { zip: autoconfig.zip,       dir: autoconfig }
+  - { zip: cheats.zip,           dir: cheats }
+  - { zip: database-rdb.zip,     dir: database/rdb }
+  - { zip: database-cursors.zip, dir: database/cursors }
+  - { zip: shaders_slang.zip,    dir: shaders }
+  - { zip: overlays.zip,         dir: overlays }

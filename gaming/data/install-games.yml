@@ -1,12 +1,16 @@
-# Automatic Steam installation profiles.
-# Bootstrap deliberately installs only ARK to validate the full pipeline.
-
-profiles:
-  bootstrap:
-    - name: "ARK: Survival Evolved"
-      appid: 346110
-
-  full:
-    - name: "ARK: Survival Evolved"
-      appid: 346110
-    # Remaining selected games will be enabled after bootstrap validation.
+install_games:
+  - {name: "ARK: Survival Evolved", appid: 346110}
+  - {name: "Cyberpunk 2077", appid: 1091500}
+  - {name: "The Elder Scrolls V: Skyrim Special Edition", appid: 489830}
+  - {name: "Fallout 4", appid: 377160}
+  - {name: "Sid Meier's Civilization VI", appid: 289070}
+  - {name: "No Man's Sky", appid: 275850}
+  - {name: "Baldur's Gate 3", appid: 1086940}
+  - {name: "The Long Dark", appid: 305620}
+  - {name: "Batman: Arkham Asylum Game of the Year Edition", appid: 35140}
+  - {name: "Batman: Arkham City - Game of the Year Edition", appid: 200260}
+  - {name: "Batman: Arkham Origins", appid: 209000}
+  - {name: "Batman: Arkham Origins Blackgate - Deluxe Edition", appid: 267490}
+  - {name: "Batman: Arkham Knight", appid: 208650}
+  - {name: "Darksiders Warmastered Edition", appid: 462780}
+  - {name: "Darksiders II Deathinitive Edition", appid: 388410}

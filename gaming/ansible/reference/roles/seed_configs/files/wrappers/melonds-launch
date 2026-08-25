@@ -1,0 +1,49 @@
+#!/usr/bin/env sh
+# melonds-launch — run melonDS with gamepad save/load-state + quit combos.
+#
+#   Select + L1    -> Load state slot 1 (melonDS shortcut F1)
+#   Select + R1    -> Save state slot 1 (melonDS shortcut Shift+F1)
+#   Select + Start -> Quit             (SIGINT; melonDS ignores SIGTERM)
+#
+# evsieve watches the real 8BitDo (no grab) and, on each combo, injects
+# the shortcut on a separate virtual keyboard device so it reaches
+# melonDS's focused Qt window. melonDS reads the controller DIRECTLY —
+# there is no virtual pad, so controller bindings and any change made
+# in melonDS's own GUI (layout, hotkeys, remaps) persist normally.
+#
+# Stick-as-d-pad was intentionally removed: it required routing melonDS
+# through a virtual pad, which melonDS mishandled — it wiped the
+# joystick bindings on exit and blocked all GUI config persistence.
+# The physical d-pad works directly; bind the analog stick or extra
+# hotkeys (e.g. L2 -> Swap Screens, R2 -> Fast Forward Toggle) straight
+# in melonDS's Config > Input and hotkeys — those now stick.
+#
+# Falls back to a plain launch when the pad/evsieve/uinput are absent,
+# so it never blocks starting a game. Select is not withheld (no grab),
+# so a combo also sends a brief Select+L/R to the game — harmless for a
+# save/load/quit press.
+
+set -eu
+
+plain() { exec melonDS -f "$@"; }
+
+pad_node=""
+for l in /dev/input/by-id/*8BitDo*Ultimate*event-joystick; do
+  [ -e "$l" ] && { pad_node=$(readlink -f "$l"); break; }
+done
+
+if [ -z "$pad_node" ] || ! command -v evsieve >/dev/null 2>&1 \
+   || [ ! -w /dev/uinput ]; then
+  plain "$@"
+fi
+
+evsieve --input "$pad_node" \
+  --hook btn:select btn:start exec-shell="pkill -INT -x melonDS" \
+  --hook btn:select btn:tl    send-key=key:f1 \
+  --hook btn:select btn:tr    send-key=key:leftshift send-key=key:f1 \
+  --output name="melonDS-keys" key:f1 key:leftshift >/dev/null 2>&1 &
+evsieve_pid=$!
+trap 'kill "$evsieve_pid" 2>/dev/null || true' EXIT INT TERM HUP
+
+# NOT exec: melonDS runs as a child so the trap stops evsieve on exit.
+melonDS -f "$@"
