@@ -1,0 +1,19 @@
+---
+- name: Reconcile gaming environment
+  hosts: gaming
+  become: false
+  gather_facts: true
+
+  vars:
+    gaming_profile: bootstrap
+    game_library: /mnt/jogos
+
+  roles:
+    - host_prerequisites
+    - container
+    - gaming_packages
+    - storage
+    - steam
+    - proton
+    - compatibility
+    - validation

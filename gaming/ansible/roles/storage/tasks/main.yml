@@ -1,0 +1,11 @@
+---
+- name: Check persistent game library
+  ansible.builtin.stat:
+    path: "{{ game_library }}"
+  register: game_library_stat
+
+- name: Refuse unsafe filesystem paths
+  ansible.builtin.assert:
+    that:
+      - game_library not in ['/', '/mnt', '/home']
+    fail_msg: "Unsafe game library path; refusing destructive filesystem work."

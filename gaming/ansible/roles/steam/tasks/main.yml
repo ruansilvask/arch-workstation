@@ -1,0 +1,5 @@
+---
+# steam: implementation must remain idempotent.
+- name: Reconcile steam
+  ansible.builtin.debug:
+    msg: "Reconcile steam for profile { gaming_profile }"
