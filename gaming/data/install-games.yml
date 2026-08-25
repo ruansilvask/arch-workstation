@@ -1,0 +1,12 @@
+# Automatic Steam installation profiles.
+# Bootstrap deliberately installs only ARK to validate the full pipeline.
+
+profiles:
+  bootstrap:
+    - name: "ARK: Survival Evolved"
+      appid: 346110
+
+  full:
+    - name: "ARK: Survival Evolved"
+      appid: 346110
+    # Remaining selected games will be enabled after bootstrap validation.

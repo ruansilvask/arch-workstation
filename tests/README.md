@@ -1,27 +1,31 @@
 # Tests
 
-This directory contains system validation tests.
+The test suite validates the target environment instead of merely checking
+whether package names appear in the package database.
 
-The goal is to verify that the workstation is actually functional, not merely that packages are installed.
+Planned/implemented areas:
 
-Planned tests:
-
-- Hardware
 - UEFI
-- systemd-boot
-- Kernel
-- Btrfs
-- Network
-- Wi-Fi
-- Audio
-- Bluetooth
-- NVIDIA
+- target disk
+- protected disks
+- CPU
+- RAM
+- AMD GPU
+- AMDGPU/Mesa/RADV
 - Vulkan
-- OpenGL
+- Btrfs
+- systemd-boot
+- NetworkManager
+- PipeWire
+- Bluetooth
+- Zsh
+- SSH
+- Distrobox
 - Steam
 - Proton
-- DXVK
-- VKD3D
-- GameMode
+- DXVK/VKD3D prerequisites
+- Gamescope
 - MangoHud
-- Gaming
+- GameMode
+- Protontricks
+- game library boundary

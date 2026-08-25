@@ -1,0 +1,5 @@
+---
+# host_prerequisites: implementation must remain idempotent.
+- name: Reconcile host_prerequisites
+  ansible.builtin.debug:
+    msg: "Reconcile host_prerequisites for profile { gaming_profile }"

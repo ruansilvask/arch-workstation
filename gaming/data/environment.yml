@@ -1,0 +1,21 @@
+environment:
+  os_target: omarchy
+  desktop: hyprland
+  display_protocol: wayland
+  gpu_vendor: amd
+  gpu_model: AMD Radeon RX 9060 XT
+  graphics_stack:
+    kernel_driver: amdgpu
+    opengl: mesa
+    vulkan: radv
+  filesystem:
+    root: btrfs
+    bootloader: systemd-boot
+  audio: pipewire
+  bluetooth: bluez
+  gaming_container: gaming
+  game_library: /mnt/jogos
+  protected_disks:
+    - /dev/sda
+    - /dev/sdb
+    - /dev/sdc

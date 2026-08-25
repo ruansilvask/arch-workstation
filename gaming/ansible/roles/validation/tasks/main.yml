@@ -1,0 +1,5 @@
+---
+# validation: implementation must remain idempotent.
+- name: Reconcile validation
+  ansible.builtin.debug:
+    msg: "Reconcile validation for profile { gaming_profile }"

@@ -1,0 +1,9 @@
+---
+- name: Gaming validation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Run gaming validation
+      ansible.builtin.command: "{{ playbook_dir }}/../scripts/validate.sh"
+      changed_when: false

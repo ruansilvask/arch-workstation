@@ -1,0 +1,5 @@
+---
+# compatibility: implementation must remain idempotent.
+- name: Reconcile compatibility
+  ansible.builtin.debug:
+    msg: "Reconcile compatibility for profile { gaming_profile }"

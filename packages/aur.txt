@@ -1,0 +1,5 @@
+# Packages that may require an AUR helper or an AUR fallback.
+# The project does not require these to build the core workstation.
+#
+# onlyoffice-bin is retained here for documentation; if the current Arch
+# repository already provides it, the package installer uses pacman first.

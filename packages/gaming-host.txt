@@ -1,0 +1,17 @@
+steam
+vulkan-tools
+vulkan-radeon
+lib32-vulkan-radeon
+mesa
+lib32-mesa
+mesa-utils
+gamescope
+mangohud
+lib32-mangohud
+gamemode
+lib32-gamemode
+protontricks
+wine
+winetricks
+distrobox
+podman
