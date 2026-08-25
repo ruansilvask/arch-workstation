@@ -1,0 +1,68 @@
+---
+- name: Stat Cheat Engine Linux zip
+  ansible.builtin.stat:
+    path: "{{ dg_cheatengine_linux_zip }}"
+  register: _ce_linux_zip
+
+- name: Fail with a download pointer if the Linux zip is missing
+  ansible.builtin.fail:
+    msg: |
+      Cheat Engine Linux zip not found at:
+        {{ dg_cheatengine_linux_zip }}
+
+      Download {{ dg_cheatengine_linux_archive_name }}.zip from
+      https://www.cheatengine.org/downloads.php and drop it at the
+      path above, then re-run this playbook. (cheatengine.org URLs
+      shift between releases, so we don't auto-fetch.)
+  when: not _ce_linux_zip.stat.exists
+
+- name: Ensure Cheat Engine install root exists
+  ansible.builtin.file:
+    path: "{{ dg_cheatengine_install_root }}"
+    state: directory
+    mode: "0755"
+
+- name: Stat extracted Cheat Engine binary
+  ansible.builtin.stat:
+    path: "{{ dg_cheatengine_exe }}"
+  register: _ce_extracted
+
+- name: Extract native Linux Cheat Engine
+  # Bare unzip is enough — the archive ships a top-level dir matching
+  # dg_cheatengine_linux_archive_name, so extracting into install_root
+  # produces install_root/<archive_name>/ which dg_cheatengine_dir
+  # already points at.
+  ansible.builtin.unarchive:
+    src: "{{ dg_cheatengine_linux_zip }}"
+    dest: "{{ dg_cheatengine_install_root }}"
+    remote_src: true
+    creates: "{{ dg_cheatengine_exe }}"
+  when: not _ce_extracted.stat.exists
+
+- name: Re-stat Cheat Engine binary after extraction
+  ansible.builtin.stat:
+    path: "{{ dg_cheatengine_exe }}"
+  register: _ce_extracted_post
+
+- name: Fail if extraction did not produce the expected binary
+  ansible.builtin.fail:
+    msg: |
+      Extraction finished but {{ dg_cheatengine_exe }} is missing. The
+      Linux build's archive layout may have shifted in version
+      {{ dg_cheatengine_linux_version }}-{{ dg_cheatengine_linux_release }}.
+      Inspect {{ dg_cheatengine_install_root }} and update
+      dg_cheatengine_dir / dg_cheatengine_exe in
+      ansible/group_vars/all/cheatengine.yml.
+  when: not _ce_extracted_post.stat.exists
+
+- name: Ensure cheatengine-x86_64 binary is executable
+  ansible.builtin.file:
+    path: "{{ dg_cheatengine_exe }}"
+    mode: "0755"
+
+- name: Install cheat-engine wrapper
+  ansible.builtin.template:
+    src: cheat-engine.j2
+    dest: "{{ dg_cheatengine_wrapper_bin }}"
+    mode: "0755"
+    backup: true

@@ -1,0 +1,12 @@
+---
+- name: Omarchy workstation
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: true
+  roles:
+    - omarchy_host
+    - workstation_packages
+    - zsh
+    - ssh_config
+    - desktop_apps

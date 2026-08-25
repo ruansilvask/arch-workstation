@@ -1,0 +1,308 @@
+---
+- name: Check sudo availability inside box
+  ansible.builtin.shell: "{{ dg_in_box }} sudo -n true"
+  register: _sudo_check
+  changed_when: false
+  failed_when: false
+
+- name: Repair sudo inside box if needed
+  when: _sudo_check.rc != 0
+  block:
+    - name: Detect container runtime
+      ansible.builtin.command: "which podman"
+      register: _has_podman
+      changed_when: false
+      failed_when: false
+
+    - name: Set container runtime command
+      ansible.builtin.set_fact:
+        _container_exec: "{{ 'podman' if _has_podman.rc == 0 else 'docker' }}"
+
+    - name: Install passwordless sudo policy
+      ansible.builtin.shell: |
+        {{ _container_exec }} exec -u root {{ dg_box_name }} sh -c '
+          install -d -m 0755 /etc/sudoers.d
+          echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/zz-distrobox-gaming-nopasswd
+          chmod 0440 /etc/sudoers.d/zz-distrobox-gaming-nopasswd
+        '
+      changed_when: true
+
+    - name: Verify sudo works after repair
+      ansible.builtin.shell: "{{ dg_in_box }} sudo -n true"
+      changed_when: false
+
+- name: Check if multilib is enabled
+  ansible.builtin.shell: "{{ dg_in_box }} grep -qx '\\[multilib\\]' /etc/pacman.conf"
+  register: _multilib_check
+  changed_when: false
+  failed_when: false
+
+- name: Enable multilib repository
+  ansible.builtin.shell: |
+    {{ dg_in_box }} sudo sh -c '
+      cat >> /etc/pacman.conf <<MULTILIB
+
+    [multilib]
+    Include = /etc/pacman.d/mirrorlist
+    MULTILIB
+    '
+  when: _multilib_check.rc != 0
+  changed_when: true
+
+- name: Sync pacman metadata (needed after multilib enablement)
+  ansible.builtin.shell: "{{ dg_in_box }} sudo pacman -Syy --noconfirm"
+  when: _multilib_check.rc != 0
+  changed_when: true
+
+# A freshly created container ships without base-devel, so makepkg has no
+# fakeroot/debugedit and the NVIDIA dummy build below fails ("Cannot find
+# the fakeroot binary"). The main package install pulls nvidia-utils as a
+# dependency, so it must run AFTER the dummy exists — meaning base-devel
+# has to be installed here, before the dummy is built. (On a long-lived
+# box base-devel was already present, which is why this only bites a
+# from-scratch rebuild.)
+- name: Install base-devel so makepkg can build the NVIDIA dummy packages
+  ansible.builtin.shell: "{{ dg_in_box }} sudo pacman -S --needed --noconfirm base-devel"
+  register: _basedevel
+  changed_when: "'installing' in _basedevel.stdout or 'reinstalling' in _basedevel.stdout"
+
+# NVIDIA dummy packages: distrobox --nvidia bind-mounts host NVIDIA libs
+# into /usr/lib, which conflicts with pacman installing nvidia-utils.
+# Install dummy packages that satisfy the dependency without writing files.
+- name: Install NVIDIA dummy packages when --nvidia is enabled
+  when: dg_nvidia_enabled
+  block:
+    - name: Detect host NVIDIA driver version
+      ansible.builtin.command: "nvidia-smi --query-gpu=driver_version --format=csv,noheader"
+      register: _nvidia_ver
+      changed_when: false
+      failed_when: false
+
+    - name: Check if nvidia-utils-dummy is already installed in box
+      ansible.builtin.shell: "{{ dg_in_box }} pacman -Q nvidia-utils-dummy"
+      register: _dummy_check
+      changed_when: false
+      failed_when: false
+
+    - name: Build and install nvidia-utils dummy packages
+      when:
+        - _nvidia_ver.rc == 0
+        - _nvidia_ver.stdout | trim | length > 0
+        - _dummy_check.rc != 0
+      ansible.builtin.shell: |
+        {{ dg_in_box }} bash -c '
+          set -e
+          tmp="$(mktemp -d)"
+          cd "$tmp"
+          cat > PKGBUILD <<PKG
+        pkgname=nvidia-utils-dummy
+        pkgver={{ _nvidia_ver.stdout | trim }}
+        pkgrel=1
+        arch=("x86_64")
+        provides=("nvidia-utils=\$pkgver" "vulkan-driver" "opengl-driver" "nvidia-libgl")
+        conflicts=("nvidia-libgl" "nvidia-utils")
+        package() { :; }
+        PKG
+          makepkg -f
+          sudo pacman -U --noconfirm nvidia-utils-dummy-*.pkg.tar.zst
+          cd /
+          rm -rf "$tmp"
+        '
+      changed_when: true
+
+    - name: Check if lib32-nvidia-utils-dummy is needed
+      ansible.builtin.shell: "{{ dg_in_box }} pacman -Q lib32-nvidia-utils-dummy lib32-nvidia-utils"
+      register: _lib32_check
+      changed_when: false
+      failed_when: false
+
+    - name: Build and install lib32-nvidia-utils dummy package
+      when:
+        - _nvidia_ver.rc == 0
+        - _nvidia_ver.stdout | trim | length > 0
+        - _lib32_check.rc != 0
+      ansible.builtin.shell: |
+        {{ dg_in_box }} bash -c '
+          set -e
+          tmp="$(mktemp -d)"
+          cd "$tmp"
+          cat > PKGBUILD <<PKG
+        pkgname=lib32-nvidia-utils-dummy
+        pkgver={{ _nvidia_ver.stdout | trim }}
+        pkgrel=1
+        arch=("x86_64")
+        provides=("lib32-nvidia-utils=\$pkgver" "lib32-vulkan-driver" "lib32-opengl-driver" "lib32-nvidia-libgl")
+        conflicts=("lib32-nvidia-libgl" "lib32-nvidia-utils")
+        package() { :; }
+        PKG
+          makepkg -f
+          sudo pacman -U --noconfirm lib32-nvidia-utils-dummy-*.pkg.tar.zst
+          cd /
+          rm -rf "$tmp"
+        '
+      changed_when: true
+
+    - name: Check extracted 32-bit NVIDIA userspace libraries
+      ansible.builtin.shell: |
+        {{ dg_in_box }} sh -lc '
+          test -f "{{ dg_nvidia_lib32_extract_dir }}/.dg-version" &&
+          grep -qx "{{ _nvidia_ver.stdout | trim }}" "{{ dg_nvidia_lib32_extract_dir }}/.dg-version" &&
+          file "{{ dg_nvidia_lib32_lib_dir }}/libGLX_nvidia.so.{{ _nvidia_ver.stdout | trim }}" |
+            grep -q "ELF 32-bit"
+        '
+      register: _nvidia_lib32_extract_check
+      changed_when: false
+      failed_when: false
+      when:
+        - dg_nvidia_lib32_workaround_enabled | bool
+        - _nvidia_ver.rc == 0
+        - _nvidia_ver.stdout | trim | length > 0
+
+    - name: Ensure tools for NVIDIA lib32 extraction are installed
+      ansible.builtin.shell: >-
+        {{ dg_in_box }} sudo pacman -S --needed --noconfirm
+        curl file zstd
+      register: _nvidia_lib32_tools
+      changed_when: "'installing' in _nvidia_lib32_tools.stdout"
+      when:
+        - dg_nvidia_lib32_workaround_enabled | bool
+        - _nvidia_ver.rc == 0
+        - _nvidia_ver.stdout | trim | length > 0
+        - _nvidia_lib32_extract_check.rc | default(1) != 0
+
+    - name: Extract matching lib32-nvidia-utils for Steam Runtime 32-bit Proton
+      ansible.builtin.shell: |
+        {{ dg_in_box }} sh -lc '
+          set -e
+          ver="{{ _nvidia_ver.stdout | trim }}"
+          pkg="lib32-nvidia-utils-${ver}-1-x86_64.pkg.tar.zst"
+          cache="{{ dg_nvidia_lib32_cache_dir }}"
+          extract="{{ dg_nvidia_lib32_extract_dir }}"
+          mkdir -p "$cache" "$extract"
+          if [ ! -f "$cache/$pkg" ]; then
+            curl -fL -o "$cache/$pkg" "{{ dg_nvidia_lib32_archive_base_url }}/$pkg"
+          fi
+          rm -rf "$extract.tmp"
+          mkdir -p "$extract.tmp"
+          tar -xf "$cache/$pkg" -C "$extract.tmp"
+          if ! file "$extract.tmp/usr/lib32/libGLX_nvidia.so.${ver}" | grep -q "ELF 32-bit"; then
+            printf "%s\n" "ERROR: extracted libGLX_nvidia.so.${ver} is not 32-bit" >&2
+            exit 1
+          fi
+          printf "%s\n" "$ver" > "$extract.tmp/.dg-version"
+          rm -rf "$extract"
+          mv "$extract.tmp" "$extract"
+        '
+      changed_when: true
+      when:
+        - dg_nvidia_lib32_workaround_enabled | bool
+        - _nvidia_ver.rc == 0
+        - _nvidia_ver.stdout | trim | length > 0
+        - _nvidia_lib32_extract_check.rc | default(1) != 0
+
+- name: Repair /usr/lib32 NVIDIA libraries
+  ansible.builtin.include_tasks:
+    file: repair-lib32-nvidia.yml
+    apply:
+      tags: [gpu]
+  when: dg_nvidia_lib32_workaround_enabled | bool
+  tags: [gpu]
+
+- name: Repair Wayland socket links in the box
+  ansible.builtin.include_tasks:
+    file: repair-wayland-socket.yml
+    apply:
+      tags: [gpu]
+  tags: [gpu]
+
+- name: Full system upgrade
+  ansible.builtin.shell: "{{ dg_in_box }} sudo pacman -Syu --noconfirm"
+  register: _upgrade
+  changed_when: "'upgraded' in _upgrade.stdout or 'installing' in _upgrade.stdout"
+
+- name: Install pacman packages
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} sudo pacman -S --needed --noconfirm --ask 4
+    {{ dg_pacman_packages | join(' ') }}
+  register: _pacman
+  changed_when: "'installing' in _pacman.stdout"
+
+- name: Check if yay is installed
+  ansible.builtin.shell: "{{ dg_in_box }} sh -lc 'command -v yay'"
+  register: _yay_check
+  changed_when: false
+  failed_when: false
+
+- name: Install yay-bin from AUR
+  ansible.builtin.shell: |
+    {{ dg_in_box }} sh -c '
+      tmp="$(mktemp -d)"
+      cd "$tmp"
+      git clone https://aur.archlinux.org/yay-bin.git
+      cd yay-bin
+      makepkg -si --noconfirm
+      rm -rf "$tmp"
+    '
+  when: _yay_check.rc != 0
+
+- name: Install AUR packages via yay
+  # Best-effort: yay builds every package in the batch and still installs
+  # the ones that succeed even when another fails, so a single broken AUR
+  # package (e.g. the recurring vita3k-bin upstream packaging bug) must NOT
+  # abort the whole rebuild — the config/ES-DE roles downstream depend on
+  # bootstrap completing. We tolerate a non-zero rc here and report any
+  # genuinely missing packages in the next task instead.
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} yay -S --needed --noconfirm
+    --answerclean None --answerdiff None
+    {{ dg_aur_packages | join(' ') }}
+  register: _yay
+  changed_when: "'installing' in _yay.stdout"
+  failed_when: false
+
+- name: Detect AUR packages that failed to install
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} bash -lc 'm=""; for p in {{ dg_aur_packages | join(" ") }};
+    do pacman -Q "$p" >/dev/null 2>&1 || m="$m $p"; done; echo "$m" | xargs'
+  register: _aur_missing
+  changed_when: false
+
+- name: Warn about AUR packages that did not install
+  ansible.builtin.debug:
+    msg: >-
+      AUR packages that FAILED to build/install (usually a transient
+      upstream AUR packaging bug): {{ _aur_missing.stdout | trim }}.
+      The rest of the box is fully provisioned; re-run bootstrap later to
+      retry these once upstream is fixed.
+  when: _aur_missing.stdout | trim | length > 0
+
+- name: Repair flycast-git's libjuice soname mismatch
+  # flycast-git was linked against libjuice.so.1.7.0, but libjuice
+  # bumped to 1.7.1 on 2026-05-05 with a soname change in a patch
+  # release. Flycast then errors out on launch with
+  # "libjuice.so.1.7.0: cannot open shared object file" — Dreamcast +
+  # NAOMI launches from ES-DE silently fail. Rebuilding flycast-git
+  # would be the proper fix but takes 10+ minutes; libjuice 1.7.0
+  # → 1.7.1 is an ABI-compatible patch release so a compat symlink
+  # works. When upstream flycast-git updates to link against 1.7.1
+  # this task becomes a no-op. Alternative: switch to libretro-flycast
+  # via the RetroArch core (already wired as the secondary command
+  # for both systems in dg_esde_systems).
+  ansible.builtin.shell: |
+    {{ dg_in_box }} sh -lc '
+      set -eu
+      target=$(ls /usr/lib/libjuice.so.1.7.* 2>/dev/null \
+        | grep -v "\.so\.1\.7\.0$" | sort | tail -1)
+      link=/usr/lib/libjuice.so.1.7.0
+      if [ -z "$target" ]; then
+        printf "%s\n" "no libjuice.so.1.7.x present, skipping repair"
+        exit 0
+      fi
+      if [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]; then
+        exit 0
+      fi
+      sudo ln -sf "$target" "$link"
+      printf "%s\n" "linked $link -> $target"
+    '
+  register: _flycast_juice_symlink
+  changed_when: "'linked ' in _flycast_juice_symlink.stdout"

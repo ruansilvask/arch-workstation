@@ -1,0 +1,11 @@
+zsh
+zsh-completions
+zsh-autosuggestions
+zsh-history-substring-search
+zsh-syntax-highlighting
+firefox
+bitwarden
+obsidian
+proton-vpn-gtk-app
+telegram-desktop
+vlc

@@ -1,0 +1,131 @@
+---
+# Deploy per-game PCSX2 texture replacement packs and patches.
+# Symlinks (not copies) keep the texture packs on the NAS — PCSX2
+# caches textures in RAM after first read so the NFS latency only
+# matters at first paint per texture.
+
+- name: Ensure PCSX2 directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ dg_pcsx2_textures_root }}"
+    - "{{ dg_pcsx2_patches_dir }}"
+    - "{{ dg_pcsx2_cheats_dir }}"
+    - "{{ dg_box_home }}/.config/PCSX2/gamesettings"
+
+- name: Find .pnach files in NAS cheats dir
+  ansible.builtin.find:
+    paths: "{{ dg_pcsx2_cheats_source }}"
+    patterns: "*.pnach"
+    file_type: file
+  register: _nas_cheats
+  failed_when: false
+
+- name: Symlink NAS cheats into PCSX2 cheats dir
+  ansible.builtin.file:
+    src: "{{ item.path }}"
+    dest: "{{ dg_pcsx2_cheats_dir }}/{{ item.path | basename }}"
+    state: link
+    force: true
+  loop: "{{ _nas_cheats.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+
+- name: Stat extra standalone .pnach patch files
+  ansible.builtin.stat:
+    path: "{{ extra_patch }}"
+  loop: "{{ dg_pcsx2_extra_patches | default([]) }}"
+  loop_control:
+    loop_var: extra_patch
+    label: "{{ extra_patch | basename }}"
+  register: _extra_patches
+
+- name: Symlink extra standalone .pnach patches into PCSX2 patches dir
+  ansible.builtin.file:
+    src: "{{ item.extra_patch }}"
+    dest: "{{ dg_pcsx2_patches_dir }}/{{ item.extra_patch | basename }}"
+    state: link
+    force: true
+  loop: "{{ _extra_patches.results }}"
+  loop_control:
+    label: "{{ item.extra_patch | basename }}"
+  when: item.stat.exists | default(false)
+
+- name: Download Silent's GT4 USA patches from public source
+  ansible.builtin.get_url:
+    url: "{{ item }}"
+    dest: "{{ dg_pcsx2_patches_dir }}/{{ item | basename | urldecode }}"
+    mode: "0644"
+    timeout: 30
+  loop: "{{ dg_pcsx2_patch_urls | default([]) }}"
+  loop_control:
+    label: "{{ item | basename | urldecode }}"
+  failed_when: false
+
+- name: "Download pnach patches with explicit rename (CRC mismatch cases)"
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: "{{ dg_pcsx2_patches_dir }}/{{ item.dest_name }}"
+    mode: "0644"
+    timeout: 30
+  loop: "{{ dg_pcsx2_patch_url_renames | default([]) }}"
+  loop_control:
+    label: "{{ item.dest_name }}"
+  failed_when: false
+
+# Append local "rebalance" cheat blocks to downloaded pnach files. Useful
+# when a freshly fetched pnach (e.g. upstream PCSX2 widescreen DB) needs
+# to be supplemented with hand-curated gameplay cheats that aren't in
+# the upstream. Each entry concatenates a repo-local file onto the
+# downloaded pnach. Idempotent — the marker keeps re-runs from
+# re-appending.
+- name: "Append local gameplay cheat blocks to deployed pnach files"
+  ansible.builtin.blockinfile:
+    path: "{{ dg_pcsx2_patches_dir }}/{{ item.target_pnach }}"
+    marker: "// ANSIBLE MANAGED APPEND: {{ item.local_file }}"
+    block: "{{ lookup('ansible.builtin.file', role_path + '/files/' + item.local_file) }}"
+  loop: "{{ dg_pcsx2_patch_appends | default([]) }}"
+  loop_control:
+    label: "{{ item.target_pnach }} <- {{ item.local_file }}"
+
+- name: Per-game texture pack deployment
+  ansible.builtin.include_tasks: deploy_pack.yml
+  loop: "{{ dg_pcsx2_texture_packs }}"
+  loop_control:
+    loop_var: pack
+    label: "{{ pack.serial }} ({{ pack.name }})"
+
+# PCSX2 >= 2.7 per-game settings convention: gamesettings/<SERIAL>_<CRC>.ini
+# Files named just <SERIAL>.ini are silently ignored (Game Properties will
+# show "using globals"). Each entry in dg_pcsx2_per_game_settings must
+# carry a `crc:` field — the 8-hex-char ELF CRC PCSX2 logs on boot.
+- name: Per-game PCSX2 settings (aspect ratio, blending, AF, etc.)
+  community.general.ini_file:
+    path: "{{ dg_box_home }}/.config/PCSX2/gamesettings/{{ pgs.0.serial }}_{{ pgs.0.crc }}.ini"
+    section: "{{ pgs.1.section }}"
+    option: "{{ pgs.1.option }}"
+    value: "{{ pgs.1.value }}"
+    create: true
+    backup: true
+    mode: "0644"
+  loop: "{{ dg_pcsx2_per_game_settings | subelements('settings') }}"
+  loop_control:
+    loop_var: pgs
+    label: "{{ pgs.0.serial }}_{{ pgs.0.crc }} [{{ pgs.1.section }}] {{ pgs.1.option }}"
+
+- name: Enable texture replacements in PCSX2 global config
+  community.general.ini_file:
+    path: "{{ dg_box_home }}/.config/PCSX2/inis/PCSX2.ini"
+    section: EmuCore/GS
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    backup: true
+    mode: "0644"
+  loop:
+    - { option: LoadTextureReplacements, value: "true" }
+    - { option: PrecacheTextureReplacements, value: "false" }
+    - { option: TextureReplacementsAsync, value: "true" }
+  loop_control:
+    label: "[EmuCore/GS] {{ item.option }}"

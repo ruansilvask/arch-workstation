@@ -3,7 +3,5 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  tasks:
-    - name: Ensure gaming container exists
-      ansible.builtin.command: distrobox list
-      changed_when: false
+  roles:
+    - gaming_container

@@ -1,0 +1,20 @@
+---
+- name: Install SSH client configuration
+  ansible.builtin.copy:
+    src: config
+    dest: "{{ ansible_env.HOME }}/.ssh/config"
+    mode: "0600"
+
+- name: Install user SSH agent service
+  ansible.builtin.copy:
+    src: ssh-agent.service
+    dest: "{{ ansible_env.HOME }}/.config/systemd/user/ssh-agent.service"
+    mode: "0644"
+
+- name: Enable user SSH agent
+  ansible.builtin.systemd:
+    name: ssh-agent.service
+    scope: user
+    enabled: true
+    state: started
+    daemon_reload: true

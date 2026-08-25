@@ -1,0 +1,328 @@
+---
+# UID/GID verification
+
+- name: Get box UID
+  ansible.builtin.shell: "{{ dg_in_box }} id -u"
+  register: _box_uid
+  changed_when: false
+
+- name: Get box GID
+  ansible.builtin.shell: "{{ dg_in_box }} id -g"
+  register: _box_gid
+  changed_when: false
+
+- name: Assert box UID/GID match host
+  ansible.builtin.assert:
+    that:
+      - _box_uid.stdout | trim | int == dg_host_uid | int
+      - _box_gid.stdout | trim | int == dg_host_gid | int
+    fail_msg: >-
+      Box UID:GID {{ _box_uid.stdout | trim }}:{{ _box_gid.stdout | trim }}
+      does not match expected {{ dg_host_uid }}:{{ dg_host_gid }}
+
+- name: Display verified identity
+  ansible.builtin.debug:
+    msg: "Host UID:GID {{ dg_host_uid }}:{{ dg_host_gid }} — Box UID:GID {{ _box_uid.stdout | trim }}:{{ _box_gid.stdout | trim }}"
+
+# Path verification
+
+- name: Verify BIOS root is readable
+  ansible.builtin.stat:
+    path: "{{ dg_bios_root }}"
+  register: _bios_dir
+
+- name: Assert BIOS root exists
+  ansible.builtin.assert:
+    that: _bios_dir.stat.exists and _bios_dir.stat.isdir
+    fail_msg: "BIOS root missing: {{ dg_bios_root }}"
+
+# Emulator command verification
+
+- name: Check emulator commands inside box
+  ansible.builtin.shell: "{{ dg_in_box }} sh -lc 'command -v {{ item }}'"
+  loop: "{{ dg_emulator_commands }}"
+  register: _cmd_checks
+  changed_when: false
+  failed_when: false
+
+- name: Report missing emulator commands
+  ansible.builtin.debug:
+    msg: "WARNING: Missing command in box: {{ item.item }}"
+  loop: "{{ _cmd_checks.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc != 0
+
+# shadPS4 module verification
+
+- name: Find shadPS4 module symlinks
+  ansible.builtin.find:
+    paths: "{{ dg_box_home }}/.local/share/shadPS4/sys_modules"
+    file_type: link
+    recurse: false
+  register: _module_links
+
+- name: Find broken shadPS4 module symlinks
+  ansible.builtin.shell: "find {{ dg_box_home }}/.local/share/shadPS4/sys_modules -maxdepth 1 -xtype l 2>/dev/null"
+  register: _broken_links
+  changed_when: false
+
+- name: Assert no broken module symlinks
+  ansible.builtin.assert:
+    that: _broken_links.stdout_lines | length == 0
+    fail_msg: "Broken shadPS4 sys_module symlinks: {{ _broken_links.stdout_lines }}"
+
+- name: Verify critical shadPS4 modules exist
+  ansible.builtin.stat:
+    path: "{{ dg_box_home }}/.local/share/shadPS4/sys_modules/{{ item }}"
+  loop:
+    - libSceFont.sprx
+    - libSceNgs2.sprx
+    - libSceUlt.sprx
+    - libSceJson.sprx
+    - libSceJson2.sprx
+    - libSceLibcInternal.sprx
+  register: _module_files
+
+- name: Assert critical modules present
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "Missing shadPS4 module: {{ item.item }}"
+  loop: "{{ _module_files.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# Generated file verification
+
+- name: Stat critical generated files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ dg_box_home }}/bin/flycast-hires"
+    - "{{ dg_dolphin_config_dir }}/GCPadNew.ini"
+    - "{{ dg_dolphin_config_dir }}/WiimoteNew.ini"
+    - "{{ dg_dolphin_config_dir }}/Profiles/GCPad/8BitDo Ultimate 2 SDL.ini"
+    - "{{ dg_dolphin_config_dir }}/Profiles/Wiimote/8BitDo Ultimate 2 Classic.ini"
+    - "{{ dg_dolphin_config_dir }}/Profiles/Wiimote/8BitDo Ultimate 2 Nunchuk.ini"
+    - "{{ dg_xemu_config }}"
+    - "{{ dg_xemu_bootrom }}"
+    - "{{ dg_xemu_flashrom }}"
+    - "{{ dg_xemu_hdd }}"
+    - "{{ dg_shadps4_bin }}"
+    - "{{ dg_shadps4_qtlauncher_bin }}"
+    - "{{ dg_shadps4_qtlauncher_root }}/current/AppRun"
+    - "{{ dg_shadps4_managed_bin }}"
+    - "{{ dg_box_home }}/.local/share/shadPS4/custom_configs/{{ dg_shadps4_title_id }}.json"
+    - "{{ dg_shadps4_patch_xml }}"
+    - "{{ dg_shadps4_game_dir }}"
+    - "{{ dg_shadps4_game_boot }}"
+    - "{{ dg_box_home }}/ES-DE/custom_systems/es_systems.xml"
+  register: _file_checks
+
+- name: Assert critical files exist
+  ansible.builtin.assert:
+    that: item.stat.exists
+    fail_msg: "Missing: {{ item.item }}"
+  loop: "{{ _file_checks.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# Xenia Manager verification (optional)
+
+- name: Check if Xenia Manager is installed
+  ansible.builtin.stat:
+    path: "{{ dg_xenia_manager_bin }}"
+  register: _xenia_installed
+
+- name: Verify Xenia Manager components
+  when: _xenia_installed.stat.exists
+  block:
+    - name: Stat Xenia Manager executable
+      ansible.builtin.stat:
+        path: "{{ dg_xenia_manager_exe }}"
+      register: _xenia_exe
+
+    - name: Assert Xenia Manager executable exists
+      ansible.builtin.assert:
+        that: _xenia_exe.stat.exists
+        fail_msg: "Xenia Manager executable missing: {{ dg_xenia_manager_exe }}"
+
+    - name: Stat Xenia Wine prefix
+      ansible.builtin.stat:
+        path: "{{ dg_xenia_prefix }}/drive_c"
+      register: _xenia_prefix
+
+    - name: Assert Xenia Wine prefix exists
+      ansible.builtin.assert:
+        that: _xenia_prefix.stat.exists
+        fail_msg: "Xenia Manager Wine prefix missing"
+
+    - name: Check wine available in box
+      ansible.builtin.shell: "{{ dg_in_box }} sh -lc 'command -v wine'"
+      register: _wine_check
+      changed_when: false
+      failed_when: false
+
+    - name: Warn if wine missing in box
+      ansible.builtin.debug:
+        msg: "WARNING: wine not found in box — run install-xenia.yml to install"
+      when: _wine_check.rc != 0
+
+# Hedge Mod Manager verification (optional)
+
+- name: Check if Hedge Mod Manager is installed
+  ansible.builtin.stat:
+    path: "{{ dg_hmm_bin }}"
+  register: _hmm_installed
+
+- name: Verify Hedge Mod Manager components
+  when: _hmm_installed.stat.exists
+  block:
+    - name: Stat Hedge Mod Manager published executable
+      ansible.builtin.stat:
+        path: "{{ dg_hmm_executable }}"
+      register: _hmm_executable
+
+    - name: Stat Hedge Mod Manager published DLL
+      ansible.builtin.stat:
+        path: "{{ dg_hmm_dll }}"
+      register: _hmm_dll
+
+    - name: Assert Hedge Mod Manager publish output exists
+      ansible.builtin.assert:
+        that:
+          - _hmm_executable.stat.exists or _hmm_dll.stat.exists
+        fail_msg: "Hedge Mod Manager publish output missing under {{ dg_hmm_current }}"
+
+    - name: Check dotnet available in box
+      ansible.builtin.shell: "{{ dg_in_box }} sh -lc 'command -v dotnet'"
+      register: _dotnet_check
+      changed_when: false
+      failed_when: false
+
+    - name: Assert dotnet available in box
+      ansible.builtin.assert:
+        that: _dotnet_check.rc == 0
+        fail_msg: "dotnet not found in box; run install-hedgemodmanager.yml"
+
+    - name: Check Steam library metadata for Hedge Mod Manager
+      ansible.builtin.stat:
+        path: "{{ dg_box_home }}/.local/share/Steam/steamapps/libraryfolders.vdf"
+      register: _hmm_steam_vdf
+
+    - name: Warn if Steam metadata is missing for Hedge Mod Manager
+      ansible.builtin.debug:
+        msg: "WARNING: Steam library metadata missing; HMM game detection will not work until Steam initializes."
+      when: not _hmm_steam_vdf.stat.exists
+
+# GPU preference verification
+
+- name: Check NVIDIA Vulkan ICD inside box
+  ansible.builtin.stat:
+    path: "{{ dg_nvidia_icd }}"
+  register: _nvidia_icd
+  when: dg_nvidia_enabled
+
+- name: Warn if NVIDIA ICD missing (box may need --nvidia recreation)
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: NVIDIA Vulkan ICD not found at {{ dg_nvidia_icd }}.
+      The box may need to be recreated with --nvidia support.
+      Run: distrobox rm -f {{ dg_box_name }} && ansible-playbook site.yml
+  when: dg_nvidia_enabled and not (_nvidia_icd.stat.exists | default(false))
+
+- name: Verify NVIDIA GPU visible via Vulkan
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} env VK_ICD_FILENAMES={{ dg_nvidia_icd }}
+    vulkaninfo --summary 2>/dev/null | grep -i nvidia
+  register: _nvidia_vulkan
+  changed_when: false
+  failed_when: false
+  when: dg_nvidia_enabled and (_nvidia_icd.stat.exists | default(false))
+
+- name: Report GPU status
+  ansible.builtin.debug:
+    msg: "{{ 'NVIDIA GPU visible: ' + _nvidia_vulkan.stdout_lines[0] if _nvidia_vulkan.stdout_lines | default([]) | length > 0 else 'WARNING: NVIDIA GPU not detected in Vulkan' }}"
+  when: dg_nvidia_enabled and (_nvidia_icd.stat.exists | default(false))
+
+- name: Verify extracted 32-bit NVIDIA libraries for Steam Runtime
+  ansible.builtin.shell: >-
+    {{ dg_in_box }} sh -lc
+    'file "{{ dg_nvidia_lib32_lib_dir }}"/libGLX_nvidia.so.* 2>/dev/null |
+    grep -q "ELF 32-bit"'
+  register: _nvidia_lib32_verify
+  changed_when: false
+  failed_when: false
+  when: dg_nvidia_lib32_workaround_enabled | bool
+
+- name: Report Steam Runtime 32-bit NVIDIA status
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        'Steam Runtime 32-bit NVIDIA libs ready at ' + dg_nvidia_lib32_lib_dir
+        if _nvidia_lib32_verify.rc | default(1) == 0
+        else 'WARNING: Steam Runtime 32-bit NVIDIA libs missing or not i386; run ansible-playbook site.yml --tags bootstrap'
+      }}
+  when: dg_nvidia_lib32_workaround_enabled | bool
+
+# Root-owned file check
+
+- name: Find root-owned files in config directories
+  ansible.builtin.shell: >-
+    find "{{ dg_box_home }}/.config" "{{ dg_box_home }}/.local/share"
+    -maxdepth 4 -user 0 -print 2>/dev/null | head -20
+  register: _root_owned
+  changed_when: false
+
+- name: Assert no root-owned files
+  ansible.builtin.assert:
+    that: _root_owned.stdout_lines | length == 0
+    fail_msg: "Root-owned files found: {{ _root_owned.stdout_lines }}"
+
+# Opt-in launcher integrity: these roles are `never`-tagged in
+# site.yml, so their payloads only exist when explicitly installed.
+# For each one that IS present on disk, assert the launcher wrapper
+# exists and is executable — the failure mode this catches is a
+# half-finished install or a wrapper deleted/renamed out from under
+# its desktop entry (e.g. the starship -> starship-fox64 rename).
+- name: Stat opt-in launcher payloads
+  ansible.builtin.stat:
+    path: "{{ item.payload }}"
+  loop:
+    - { name: Render96ex, payload: "{{ dg_render96ex_install_dir }}/sm64.us.f3dex2e", wrapper: "{{ dg_render96ex_bin }}" }
+    - { name: SpaghettiKart, payload: "{{ dg_spaghettikart_install_dir }}/mk64.o2r", wrapper: "{{ dg_spaghettikart_bin }}" }
+    - { name: Ship of Harkinian, payload: "{{ dg_ship_of_harkinian_install_dir }}/soh.appimage", wrapper: "{{ dg_ship_of_harkinian_bin }}" }
+    - { name: 2Ship2Harkinian, payload: "{{ dg_two_ship2harkinian_install_dir }}/{{ dg_two_ship2harkinian_appimage_name }}", wrapper: "{{ dg_two_ship2harkinian_bin }}" }
+    - { name: Starship, payload: "{{ dg_starship_install_dir }}/{{ dg_starship_appimage_name }}", wrapper: "{{ dg_starship_bin }}" }
+    - { name: 7th Heaven, payload: "{{ dg_7th_heaven_current }}", wrapper: "{{ dg_7th_heaven_bin }}" }
+    - { name: Steam trainers, payload: "{{ dg_steam_trainers_config }}", wrapper: "{{ dg_steam_trainers_wrapper_bin }}" }
+  loop_control:
+    label: "{{ item.name }}"
+  register: _optin_payloads
+
+- name: Stat opt-in launcher wrappers
+  ansible.builtin.stat:
+    path: "{{ item.item.wrapper }}"
+  loop: "{{ _optin_payloads.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.stat.exists
+  register: _optin_wrappers
+
+- name: Assert installed opt-in launchers have executable wrappers
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+      - item.stat.executable
+    fail_msg: >-
+      {{ item.item.item.name }} payload is installed but its launcher
+      wrapper is missing or not executable: {{ item.item.item.wrapper }}
+    quiet: true
+  loop: "{{ _optin_wrappers.results }}"
+  loop_control:
+    label: "{{ item.item.item.name }}"
+  when: item is not skipped
+
+- name: Verification completed
+  ansible.builtin.debug:
+    msg: "All verification checks passed"

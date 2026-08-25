@@ -1,0 +1,21 @@
+gaming:
+  container: gaming
+  base_image: archlinux:latest
+  gpu:
+    vendor: amd
+    model: "AMD Radeon RX 9060 XT"
+    driver: amdgpu
+    mesa: true
+    vulkan: radv
+  display: wayland
+  library: /mnt/jogos
+  components:
+    - distrobox
+    - steam
+    - proton
+    - dxvk
+    - vkd3d
+    - gamescope
+    - mangohud
+    - gamemode
+    - protontricks

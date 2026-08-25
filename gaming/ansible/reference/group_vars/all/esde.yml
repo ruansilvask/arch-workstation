@@ -1,0 +1,395 @@
+# ES-DE custom system definitions.
+# Each entry generates a <system> block in es_systems.xml.
+#
+# Path strategy: every system uses an explicit absolute path under the
+# EmuDeck rom-tree split. ES-DE's %ROMPATH% / ROMDirectory setting is
+# unused — different systems live in different tier dirs (roms /
+# roms_mid / roms_heavy / roms_rare) and ES-DE only supports one
+# ROMDirectory, so a single %ROMPATH% can't cover them all.
+
+# Arcade systems whose ROM dirs are MAME-style sets with Skraper
+# gamelist.xml metadata: the configure_esde role generates ES-DE
+# gamelists for these with clone sets hidden (parent = shortest
+# filename per display name). naomi/naomi2 are deliberately not listed
+# — their libraries showed no duplicate clutter.
+dg_esde_arcade_clone_systems:
+  - model1
+  - model2
+  - model3
+
+dg_esde_systems:
+  - name: switch
+    fullname: Nintendo Switch
+    path: "{{ dg_emudeck_root }}/roms_heavy/switch"
+    extension: ".nca .NCA .nro .NRO .nso .NSO .nsp .NSP .xci .XCI"
+    commands:
+      - { label: "Eden (Standalone)", cmd: "env -u QT_STYLE_OVERRIDE eden %ROM%" }
+      - { label: "Ryujinx (Standalone)", cmd: "%EMULATOR_RYUJINX% %ROM%" }
+    platform: switch
+    theme: switch
+
+  - name: psx
+    fullname: Sony PlayStation
+    path: "{{ dg_emudeck_root }}/roms/psx"
+    extension: ".bin .BIN .cbn .CBN .ccd .CCD .chd .CHD .cue .CUE .ecm .ECM .exe .EXE .img .IMG .iso .ISO .m3u .M3U .mdf .MDF .mds .MDS .minipsf .MINIPSF .pbp .PBP .psexe .PSEXE .psf .PSF .toc .TOC .z .Z .znx .ZNX .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "DuckStation (Standalone)", cmd: "duckstation-qt -batch %ROM%" }
+      - { label: "Beetle PSX HW", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/mednafen_psx_hw_libretro.so %ROM%" }
+      - { label: "Beetle PSX", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/mednafen_psx_libretro.so %ROM%" }
+    platform: psx
+    theme: psx
+
+  - name: ps2
+    fullname: Sony PlayStation 2
+    path: "{{ dg_emudeck_root }}/roms_heavy/ps2"
+    extension: ".bin .BIN .chd .CHD .ciso .CISO .cso .CSO .dump .DUMP .elf .ELF .gz .GZ .m3u .M3U .mdf .MDF .img .IMG .iso .ISO .isz .ISZ .ngr .NRG .zso .ZSO"
+    commands:
+      - { label: "PCSX2 (Standalone)", cmd: "pcsx2-qt -batch %ROM%" }
+      - { label: "PCSX2 (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/pcsx2_libretro.so %ROM%" }
+    platform: ps2
+    theme: ps2
+
+  - name: dreamcast
+    fullname: Sega Dreamcast
+    path: "{{ dg_emudeck_root }}/roms_mid/dreamcast"
+    extension: ".cdi .CDI .chd .CHD .cue .CUE .dat .DAT .elf .ELF .gdi .GDI .iso .ISO .lst .LST .m3u .M3U .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Flycast (Standalone)", cmd: "{{ dg_box_home }}/bin/flycast-hires %ROM%" }
+      - { label: "Flycast (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/flycast_libretro.so %ROM%" }
+    platform: dreamcast
+    theme: dreamcast
+
+  - name: gc
+    fullname: Nintendo GameCube
+    path: "{{ dg_emudeck_root }}/roms_heavy/gc"
+    extension: ".ciso .CISO .dff .DFF .dol .DOL .elf .ELF .gcm .GCM .gcz .GCZ .iso .ISO .json .JSON .m3u .M3U .rvz .RVZ .tgc .TGC .wad .WAD .wbfs .WBFS .wia .WIA .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Dolphin (Standalone)", cmd: "dolphin-emu -b -e %ROM%" }
+      - { label: "Dolphin (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/dolphin_libretro.so %ROM%" }
+    platform: gc
+    theme: gc
+
+  - name: wii
+    fullname: Nintendo Wii
+    path: "{{ dg_emudeck_root }}/roms_heavy/wii"
+    extension: ".ciso .CISO .dff .DFF .dol .DOL .elf .ELF .gcm .GCM .gcz .GCZ .iso .ISO .json .JSON .m3u .M3U .rvz .RVZ .tgc .TGC .wad .WAD .wbfs .WBFS .wia .WIA .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Dolphin (Standalone)", cmd: "dolphin-emu -b -e %ROM%" }
+      - { label: "Dolphin (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/dolphin_libretro.so %ROM%" }
+    platform: wii
+    theme: wii
+
+  - name: psp
+    fullname: Sony PlayStation Portable
+    path: "{{ dg_emudeck_root }}/roms_mid/psp"
+    extension: ".chd .CHD .cso .CSO .elf .ELF .iso .ISO .pbp .PBP .prx .PRX .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "PPSSPP (Standalone)", cmd: "PPSSPPQt %ROM%" }
+      - { label: "PPSSPP (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/ppsspp_libretro.so %ROM%" }
+    platform: psp
+    theme: psp
+
+  - name: ps3
+    fullname: Sony PlayStation 3
+    # Extracted-folder dumps: each game is a directory named
+    # "<Title>.ps3" containing PS3_GAME/USRDIR/EBOOT.BIN. ES-DE treats
+    # a directory whose name matches a listed extension as a single
+    # launchable entry, and RPCS3 boots the folder directly. Loose
+    # .pkg PSN games must be installed into dev_hdd0 via the RPCS3 GUI
+    # first (they can't be scanned/launched from here), and PS3 ISOs
+    # must be extracted to folder form — RPCS3 doesn't read them.
+    path: "{{ dg_emudeck_root }}/roms_heavy/ps3"
+    extension: ".ps3 .PS3"
+    commands:
+      - { label: "RPCS3 (Standalone)", cmd: "rpcs3 --no-gui %ROM%" }
+    platform: ps3
+    theme: ps3
+
+  - name: ps4
+    fullname: Sony PlayStation 4
+    # Multi-game path: every <ps4_root>/CUSA_xxxxx/eboot.bin is a game.
+    # Display names come from a generated gamelist.xml that reads each
+    # game's PARAM.SFO TITLE field (see configure_esde/tasks/ps4-gamelist.yml).
+    # The shadps4-launch wrapper derives the CUSA ID from the parent dir
+    # and auto-applies <patches>/<CUSA>.xml when present.
+    path: "{{ dg_ps4_rom_root }}"
+    extension: ".bin .BIN"
+    commands:
+      - label: "shadPS4 (Standalone)"
+        cmd: "{{ dg_box_home }}/bin/shadps4-launch %ROM%"
+    platform: ps4
+    theme: ps4
+
+  - name: xbox
+    fullname: Microsoft Xbox
+    path: "{{ dg_emudeck_root }}/roms_heavy/xbox"
+    extension: ".iso .ISO .xiso .XISO"
+    commands:
+      # Wrapper at $HOME/bin/xemu re-asserts surface_scale in xemu.toml
+      # before delegating to /opt/xemu/bin/xemu (xemu doesn't persist
+      # the Int. Resolution Scale on shutdown on this stack).
+      - label: "xemu (Standalone)"
+        cmd: "{{ dg_box_home }}/bin/xemu -dvd_path %ROM%"
+    platform: xbox
+    theme: xbox
+
+  - name: n3ds
+    fullname: Nintendo 3DS
+    # Absolute path — 3DS ROMs live under dg_rom_heavy_root with the
+    # rest of the larger systems (PS3, GameCube, Wii, etc.).
+    path: "{{ dg_azahar_game_dir }}"
+    extension: ".3ds .3DS .cci .CCI .cxi .CXI .app .APP .elf .ELF .cia .CIA .3dsx .3DSX"
+    commands:
+      - { label: "Azahar (Standalone)", cmd: "{{ dg_box_home }}/bin/azahar-launch %ROM%" }
+    platform: n3ds
+    theme: n3ds
+
+  - name: xbox360
+    fullname: Microsoft Xbox 360
+    # Multi-game path: every ISO / default.xex under roms_heavy/xbox360
+    # is a launchable title. Modded subdirs (FM2/FM3/FM4 Project Forza
+    # Plus, RidgeRacerCollection, etc.) have default.xex inside; ES-DE
+    # recurses subdirs by default and picks them up. The wrapper resolves
+    # each ROM to its Xenia Manager per-game config via games.json.
+    path: "{{ dg_emudeck_root }}/roms_heavy/xbox360"
+    extension: ".iso .ISO .xex .XEX"
+    commands:
+      # Wrapper resolves %ROM% to its per-game .config.toml via Xenia
+      # Manager's games.json, then runs xenia_canary.exe in the
+      # dg_xenia_prefix wineprefix. Falls back to default config with a
+      # stderr warning if the ROM is unmapped (e.g. XBLA folder hashes
+      # whose tracked path in games.json doesn't match an .iso/.xex
+      # filename ES-DE scanned).
+      - label: "Xenia Canary (per-game config)"
+        cmd: "{{ dg_box_home }}/bin/xenia-canary-launch %ROM%"
+    platform: xbox360
+    theme: xbox360
+
+  - name: model2
+    fullname: Sega Model 2
+    path: "{{ dg_emudeck_root }}/roms_rare/model2"
+    extension: ".zip .ZIP"
+    commands:
+      # Wrapper reduces %ROM% to the romset name; EMULATOR.EXE resolves
+      # the zip itself via [RomDirs] in EMULATOR.INI.
+      - { label: "Model 2 Emulator (Wine)", cmd: "{{ dg_box_home }}/bin/m2emulator-launch %ROM%" }
+      # Alternate emulator, valid ONLY for srallyc.zip: the Wanszai HD PC
+      # wrapper (install_sega_rally). Pick it per-game for Sega Rally;
+      # it ignores %ROM% and always runs its own bundled build.
+      - { label: "Sega Rally HD (Wanszai)", cmd: "{{ dg_box_home }}/bin/sega-rally-launch %ROM%" }
+    platform: arcade
+    theme: model2
+
+  - name: model1
+    fullname: Sega Model 1
+    path: "{{ dg_emudeck_root }}/roms_rare/model1"
+    extension: ".zip .ZIP"
+    commands:
+      - { label: "Model 1 dispatcher (Wine/MAME)", cmd: "{{ dg_box_home }}/bin/model1-launch %ROM%" }
+    platform: arcade
+    theme: model1
+
+  - name: model3
+    fullname: Sega Model 3
+    path: "{{ dg_emudeck_root }}/roms_rare/model3"
+    extension: ".zip .ZIP"
+    commands:
+      # Must be the dg wrapper: the AUR /usr/bin/supermodel drops its
+      # args, so a plain `supermodel %ROM%` never loads the ROM.
+      - { label: "Supermodel (Standalone)", cmd: "{{ dg_box_home }}/bin/supermodel-launch %ROM%" }
+    platform: arcade
+    theme: model3
+
+  # NAOMI 1/2 ROM layout is MAME-style: <game>.zip at the top level, and
+  # GD-ROM games additionally keep their gdl/gds-*.chd inside a folder
+  # named after the zip (flycast resolves it there automatically). The
+  # extension list is therefore zips ONLY — a wider list would also
+  # surface the bare CHDs as duplicate entries that can't boot on their
+  # own. BIOS (naomi.zip/naomi2.zip) is symlinked into flycast's data
+  # dir by seed_configs.
+  - name: naomi
+    fullname: Sega NAOMI
+    path: "{{ dg_emudeck_root }}/roms_rare/naomi"
+    extension: ".zip .ZIP .7z .7Z"
+    commands:
+      - { label: "Flycast (Standalone)", cmd: "{{ dg_box_home }}/bin/flycast-hires %ROM%" }
+      - { label: "Flycast (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/flycast_libretro.so %ROM%" }
+    platform: arcade
+    theme: naomi
+
+  - name: naomi2
+    fullname: Sega NAOMI 2
+    path: "{{ dg_emudeck_root }}/roms_rare/naomi2"
+    extension: ".zip .ZIP .7z .7Z"
+    commands:
+      - { label: "Flycast (Standalone)", cmd: "{{ dg_box_home }}/bin/flycast-hires %ROM%" }
+      - { label: "Flycast (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/flycast_libretro.so %ROM%" }
+    platform: arcade
+    theme: naomi2
+
+  # ---------------------------------------------------------------------
+  # RetroArch-cored systems. Each entry uses a single libretro core
+  # installed in the gaming box's ~/.config/retroarch/cores/. To add
+  # alternative cores per-system, add more {label, cmd} entries to the
+  # `commands` list — ES-DE shows them as a dropdown at launch.
+  # ---------------------------------------------------------------------
+
+  - name: nes
+    fullname: Nintendo Entertainment System
+    path: "{{ dg_emudeck_root }}/roms/nes"
+    extension: ".nes .NES .fds .FDS .unif .UNIF .unf .UNF .zip .ZIP .7z .7Z"
+    commands:
+      - { label: "Mesen (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/mesen_libretro.so %ROM%" }
+    platform: nes
+    theme: nes
+
+  - name: snes
+    fullname: Super Nintendo Entertainment System
+    path: "{{ dg_emudeck_root }}/roms/snes"
+    extension: ".smc .SMC .sfc .SFC .swc .SWC .fig .FIG .bs .BS .st .ST .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Auto bsnes/bsnes-hd (RetroArch)", cmd: "{{ dg_box_home }}/bin/retroarch-snes %ROM%" }
+      - { label: "bsnes (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/bsnes_libretro.so %ROM%" }
+      - { label: "bsnes-hd beta (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/bsnes_hd_beta_libretro.so %ROM%" }
+      - { label: "Snes9x (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/snes9x_libretro.so %ROM%" }
+    platform: snes
+    theme: snes
+
+  - name: gb
+    fullname: Nintendo Game Boy
+    path: "{{ dg_emudeck_root }}/roms/gb"
+    extension: ".gb .GB .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Gambatte (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/gambatte_libretro.so %ROM%" }
+    platform: gb
+    theme: gb
+
+  - name: gbc
+    fullname: Nintendo Game Boy Color
+    path: "{{ dg_emudeck_root }}/roms/gbc"
+    extension: ".gbc .GBC .gb .GB .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Gambatte (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/gambatte_libretro.so %ROM%" }
+    platform: gbc
+    theme: gbc
+
+  - name: gba
+    fullname: Nintendo Game Boy Advance
+    path: "{{ dg_emudeck_root }}/roms/gba"
+    extension: ".gba .GBA .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "mGBA (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/mgba_libretro.so %ROM%" }
+    platform: gba
+    theme: gba
+
+  - name: nds
+    fullname: Nintendo DS
+    path: "{{ dg_emudeck_root }}/roms_mid/nds"
+    extension: ".nds .NDS .zip .ZIP .7z .7Z"
+    commands:
+      - { label: "melonDS (Standalone)", cmd: "{{ dg_box_home }}/bin/melonds-launch %ROM%" }
+      - { label: "melonDS (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/melonds_libretro.so %ROM%" }
+    platform: nds
+    theme: nds
+
+  - name: n64
+    fullname: Nintendo 64
+    path: "{{ dg_emudeck_root }}/roms_mid/n64"
+    extension: ".n64 .N64 .v64 .V64 .z64 .Z64 .ndd .NDD .zip .ZIP .7z .7Z"
+    commands:
+      - { label: "Mupen64Plus-Next (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/mupen64plus_next_libretro.so %ROM%" }
+      # ParaLLEl-N64 runs heavy Kaze romhacks that crash Mupen64Plus-Next
+      # (SM64: Last Impact). Pick it per-game in ES-DE for those hacks.
+      - { label: "ParaLLEl N64 (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/parallel_n64_libretro.so %ROM%" }
+    platform: n64
+    theme: n64
+
+  - name: mastersystem
+    fullname: Sega Master System
+    path: "{{ dg_emudeck_root }}/roms/mastersystem"
+    extension: ".sms .SMS .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Genesis Plus GX (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/genesis_plus_gx_libretro.so %ROM%" }
+    platform: mastersystem
+    theme: mastersystem
+
+  - name: genesis
+    fullname: Sega Genesis / Mega Drive
+    path: "{{ dg_emudeck_root }}/roms/genesis"
+    extension: ".smd .SMD .md .MD .bin .BIN .gen .GEN .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Genesis Plus GX (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/genesis_plus_gx_libretro.so %ROM%" }
+    platform: genesis
+    theme: genesis
+
+  - name: gamegear
+    fullname: Sega Game Gear
+    path: "{{ dg_emudeck_root }}/roms/gamegear"
+    extension: ".gg .GG .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Genesis Plus GX (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/genesis_plus_gx_libretro.so %ROM%" }
+    platform: gamegear
+    theme: gamegear
+
+  - name: sega32x
+    fullname: Sega 32X
+    path: "{{ dg_emudeck_root }}/roms/sega32x"
+    extension: ".32x .32X .smd .SMD .md .MD .bin .BIN .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "PicoDrive (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/picodrive_libretro.so %ROM%" }
+    platform: sega32x
+    theme: sega32x
+
+  - name: megacd
+    fullname: Sega CD / Mega CD
+    path: "{{ dg_emudeck_root }}/roms_mid/megacd"
+    extension: ".cue .CUE .chd .CHD .iso .ISO .ccd .CCD .m3u .M3U .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Genesis Plus GX (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/genesis_plus_gx_libretro.so %ROM%" }
+    platform: segacd
+    theme: segacd
+
+  - name: saturn
+    fullname: Sega Saturn
+    path: "{{ dg_emudeck_root }}/roms/saturn"
+    extension: ".cue .CUE .chd .CHD .iso .ISO .ccd .CCD .mds .MDS .m3u .M3U .7z .7Z .zip .ZIP"
+    commands:
+      - { label: "Beetle Saturn (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/mednafen_saturn_libretro.so %ROM%" }
+    platform: saturn
+    theme: saturn
+
+  - name: neogeo
+    fullname: SNK Neo Geo AES / MVS
+    path: "{{ dg_emudeck_root }}/roms/neogeo"
+    extension: ".zip .ZIP .7z .7Z"
+    commands:
+      - { label: "FB Neo (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/fbneo_libretro.so %ROM%" }
+    platform: neogeo
+    theme: neogeo
+
+  - name: cps
+    fullname: Capcom Play System
+    path: "{{ dg_emudeck_root }}/roms/cps"
+    extension: ".zip .ZIP .7z .7Z"
+    commands:
+      - { label: "FB Neo (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/fbneo_libretro.so %ROM%" }
+    platform: arcade
+    theme: cps
+
+  - name: cps2
+    fullname: Capcom Play System II
+    path: "{{ dg_emudeck_root }}/roms/cps2"
+    extension: ".zip .ZIP .7z .7Z"
+    commands:
+      - { label: "FB Neo (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/fbneo_libretro.so %ROM%" }
+    platform: arcade
+    theme: cps2
+
+  - name: mame
+    fullname: Arcade (MAME)
+    path: "{{ dg_emudeck_root }}/roms/mame"
+    extension: ".zip .ZIP .7z .7Z"
+    commands:
+      - { label: "MAME (RetroArch)", cmd: "%EMULATOR_RETROARCH% -L %CORE_RETROARCH%/mame_libretro.so %ROM%" }
+    platform: arcade
+    theme: mame

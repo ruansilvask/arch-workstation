@@ -1,0 +1,26 @@
+---
+- name: Install official desktop applications
+  community.general.pacman:
+    name:
+      - firefox
+      - bitwarden
+      - obsidian
+      - proton-vpn-gtk-app
+      - telegram-desktop
+      - vlc
+    state: present
+    update_cache: true
+
+- name: Create ChatGPT web app launcher
+  ansible.builtin.copy:
+    dest: "{{ ansible_env.HOME }}/.local/share/applications/chatgpt.desktop"
+    mode: "0644"
+    content: |
+      [Desktop Entry]
+      Name=ChatGPT
+      Comment=Open ChatGPT
+      Exec=xdg-open https://chatgpt.com/
+      Icon=web-browser
+      Terminal=false
+      Type=Application
+      Categories=Network;Office;
